@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unlock Request</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f5; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; }
+    .card { background: white; border-radius: 16px; padding: 2rem; max-width: 400px; width: 100%; box-shadow: 0 4px 24px rgba(0,0,0,0.08); text-align: center; }
+    h1 { font-size: 1.4rem; margin-bottom: 0.5rem; }
+    p { color: #666; margin-bottom: 1.5rem; }
+    .app-name { font-weight: 700; color: #1a1a1a; font-size: 1.1rem; }
+    .buttons { display: flex; gap: 1rem; justify-content: center; }
+    button { padding: 0.75rem 2rem; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: opacity .2s; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #approve-btn { background: #16a34a; color: white; }
+    #deny-btn { background: #dc2626; color: white; }
+    #message { margin-top: 1.5rem; font-weight: 600; font-size: 1rem; }
+    .loading { color: #888; }
+    .error { color: #dc2626; }
+    .success { color: #16a34a; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div id="loading" class="loading">Loading request...</div>
+  <div id="content" style="display:none">
+    <h1>Unlock Request</h1>
+    <p><span id="user-email"></span> wants to open</p>
+    <p class="app-name" id="app-name"></p>
+    <br>
+    <p>Do you approve this unlock for 30 minutes?</p>
+    <div class="buttons">
+      <button id="approve-btn" onclick="submit('approve')">Approve</button>
+      <button id="deny-btn" onclick="submit('deny')">Deny</button>
+    </div>
+  </div>
+  <div id="message"></div>
+</div>
+
+<script>
+const token = location.pathname.split('/approve/')[1];
+const API = location.origin;
+
+async function load() {
+  try {
+    const r = await fetch(`${API}/approve/${token}`);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = '';
+    document.getElementById('user-email').textContent = data.userEmail;
+    document.getElementById('app-name').textContent = data.appName;
+  } catch (e) {
+    document.getElementById('loading').textContent = '';
+    showMessage('error', e.message || 'Invalid or expired link.');
+  }
+}
+
+async function submit(decision) {
+  document.getElementById('approve-btn').disabled = true;
+  document.getElementById('deny-btn').disabled = true;
+  try {
+    const r = await fetch(`${API}/approve/${token}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    document.getElementById('content').style.display = 'none';
+    showMessage('success', decision === 'approve'
+      ? '✓ Access approved for 30 minutes.'
+      : '✗ Access denied.');
+  } catch (e) {
+    showMessage('error', e.message || 'Something went wrong.');
+  }
+}
+
+function showMessage(type, text) {
+  const el = document.getElementById('message');
+  el.className = type;
+  el.textContent = text;
+}
+
+load();
+</script>
+</body>
+</html>

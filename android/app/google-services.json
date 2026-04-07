@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "319165697711",
+    "project_id": "impulsecontrol-27cb6",
+    "storage_bucket": "impulsecontrol-27cb6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:319165697711:android:5cb3cef4ea76a739130e5a",
+        "android_client_info": {
+          "package_name": "com.impulsecontrol"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCPZtdvrDq3LtvjpYxyf-PLzcefZa9aNWQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
