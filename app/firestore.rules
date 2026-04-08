@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection - each user can manage their own document
+    match /users/{userId} {
+      // Allow authenticated users to read/write their own data
+      allow read, write: if request.auth.uid == userId;
+      
+      // Blocks subcollection - per-app settings
+      match /blocks/{document=**} {
+        allow read, write: if request.auth.uid == userId;
+      }
+      
+      // Contacts subcollection - trusted unlock approvers
+      match /contacts/{document=**} {
+        allow read, write: if request.auth.uid == userId;
+      }
+
+      // Lock state model
+      match /lock_state/{document=**} {
+        allow read, write: if request.auth.uid == userId;
+      }
+    }
+    
+    // Approval links - temporarily allow reads for web unlock page
+    match /approval_links/{token} {
+      // Anyone can read approval link (web page verification)
+      allow read: if true;
+      // Only authenticated users can create approval requests
+      allow create: if request.auth != null;
+      // Trusted-person setup (no login) is allowed if they know the token.
+      allow update: if (
+        resource.data.status == 'pending' &&
+        (request.resource.data.status == 'used' || request.resource.data.status == 'approved') &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.expiresAt == resource.data.expiresAt &&
+        request.resource.data.blockedFeatures == resource.data.blockedFeatures &&
+        request.resource.data.packageName == resource.data.packageName &&
+        request.resource.data.trustedName is string &&
+        request.resource.data.pin is string &&
+        request.resource.data.pin.size() == 4 &&
+        request.resource.data.unlockedUntil is timestamp
+      );
+      // Never allow deletion
+      allow delete: if false;
+    }
+    
+    // Default deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

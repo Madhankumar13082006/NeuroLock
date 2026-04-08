@@ -3,88 +3,314 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Unlock Request</title>
+  <title>Nokkon - Set PIN</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, sans-serif; background: #f5f5f5; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; }
-    .card { background: white; border-radius: 16px; padding: 2rem; max-width: 400px; width: 100%; box-shadow: 0 4px 24px rgba(0,0,0,0.08); text-align: center; }
-    h1 { font-size: 1.4rem; margin-bottom: 0.5rem; }
-    p { color: #666; margin-bottom: 1.5rem; }
-    .app-name { font-weight: 700; color: #1a1a1a; font-size: 1.1rem; }
-    .buttons { display: flex; gap: 1rem; justify-content: center; }
-    button { padding: 0.75rem 2rem; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: opacity .2s; }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
-    #approve-btn { background: #16a34a; color: white; }
-    #deny-btn { background: #dc2626; color: white; }
-    #message { margin-top: 1.5rem; font-weight: 600; font-size: 1rem; }
-    .loading { color: #888; }
-    .error { color: #dc2626; }
-    .success { color: #16a34a; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 2.5rem;
+      max-width: 450px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+      text-align: center;
+    }
+    .logo {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #8B5CF6 0%, #FBBF24 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+      color: #1a1a1a;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 2rem;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    .form-group {
+      margin-bottom: 1.5rem;
+      text-align: left;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      color: #333;
+      font-size: 0.95rem;
+    }
+    input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+    input:focus {
+      outline: none;
+      border-color: #8B5CF6;
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type="number"] {
+      -moz-appearance: textfield;
+    }
+    .pin-input {
+      letter-spacing: 10px;
+      font-size: 1.5rem;
+      text-align: center;
+      font-weight: 700;
+    }
+    .blocked-apps {
+      background: #f5f5f5;
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      text-align: left;
+    }
+    .blocked-apps-title {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+    .app-tag {
+      display: inline-block;
+      background: #e0e7ff;
+      color: #4f46e5;
+      padding: 0.25rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 2rem;
+    }
+    button {
+      padding: 0.75rem 2rem;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    #submit-btn {
+      background: linear-gradient(135deg, #8B5CF6 0%, #FBBF24 100%);
+      color: white;
+      min-width: 150px;
+      flex: 1;
+    }
+    #submit-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(139, 92, 246, 0.3);
+    }
+    #cancel-btn {
+      background: #e5e7eb;
+      color: #333;
+      flex: 1;
+    }
+    #cancel-btn:hover:not(:disabled) {
+      background: #d1d5db;
+    }
+    #message {
+      margin-top: 1.5rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 1rem;
+      border-radius: 10px;
+      display: none;
+    }
+    .loading {
+      color: #666;
+      text-align: center;
+    }
+    .error {
+      background: #fee2e2;
+      color: #dc2626;
+      display: block;
+    }
+    .success {
+      background: #dcfce7;
+      color: #16a34a;
+      display: block;
+    }
+    #loading {
+      display: none;
+    }
+    .pin-strength {
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+      color: #666;
+    }
   </style>
 </head>
 <body>
-<div class="card">
-  <div id="loading" class="loading">Loading request...</div>
-  <div id="content" style="display:none">
-    <h1>Unlock Request</h1>
-    <p><span id="user-email"></span> wants to open</p>
-    <p class="app-name" id="app-name"></p>
-    <br>
-    <p>Do you approve this unlock for 30 minutes?</p>
-    <div class="buttons">
-      <button id="approve-btn" onclick="submit('approve')">Approve</button>
-      <button id="deny-btn" onclick="submit('deny')">Deny</button>
+  <div class="card">
+    <div id="loading" class="loading">⏳ Loading request...</div>
+    <div id="content" style="display: none">
+      <div class="logo">🔐 Nokkon</div>
+      <h1>Set PIN</h1>
+      <p class="subtitle">A trusted person is asking for permission to unlock your account.</p>
+
+      <div class="blocked-apps" id="blocked-apps" style="display: none">
+        <div class="blocked-apps-title">Blocked Applications:</div>
+        <div id="apps-list"></div>
+      </div>
+
+      <form id="form" onsubmit="submit(event)">
+        <div class="form-group">
+          <label for="name">Your Name</label>
+          <input
+            type="text"
+            id="name"
+            placeholder="Enter your name"
+            required
+            maxlength="50"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="pin">4-Digit PIN</label>
+          <input
+            type="number"
+            id="pin"
+            class="pin-input"
+            placeholder="0000"
+            min="0"
+            max="9999"
+            required
+          />
+          <div class="pin-strength">Enter a 4-digit PIN to unlock the account</div>
+        </div>
+
+        <div class="buttons">
+          <button type="button" id="cancel-btn" onclick="cancelRequest()">
+            Cancel
+          </button>
+          <button type="submit" id="submit-btn">Set PIN</button>
+        </div>
+      </form>
     </div>
+    <div id="message"></div>
   </div>
-  <div id="message"></div>
-</div>
 
-<script>
-const token = location.pathname.split('/approve/')[1];
-const API = location.origin;
+  <script>
+    const params = new URLSearchParams(location.search);
+    const token = params.get("token");
+    const API = "http://localhost:5000"; // Change to your backend API
 
-async function load() {
-  try {
-    const r = await fetch(`${API}/approve/${token}`);
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error);
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('content').style.display = '';
-    document.getElementById('user-email').textContent = data.userEmail;
-    document.getElementById('app-name').textContent = data.appName;
-  } catch (e) {
-    document.getElementById('loading').textContent = '';
-    showMessage('error', e.message || 'Invalid or expired link.');
-  }
-}
+    async function load() {
+      if (!token) {
+        showMessage("error", "❌ Invalid or missing link.");
+        return;
+      }
 
-async function submit(decision) {
-  document.getElementById('approve-btn').disabled = true;
-  document.getElementById('deny-btn').disabled = true;
-  try {
-    const r = await fetch(`${API}/approve/${token}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ decision }),
-    });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error);
-    document.getElementById('content').style.display = 'none';
-    showMessage('success', decision === 'approve'
-      ? '✓ Access approved for 30 minutes.'
-      : '✗ Access denied.');
-  } catch (e) {
-    showMessage('error', e.message || 'Something went wrong.');
-  }
-}
+      // In a real implementation, you would validate the token with the backend
+      // For now, we'll proceed with the form
+      document.getElementById("loading").style.display = "none";
+      document.getElementById("content").style.display = "";
+    }
 
-function showMessage(type, text) {
-  const el = document.getElementById('message');
-  el.className = type;
-  el.textContent = text;
-}
+    async function submit(event) {
+      event.preventDefault();
 
-load();
-</script>
+      const name = document.getElementById("name").value;
+      const pin = document.getElementById("pin").value;
+
+      if (!name || name.length < 2) {
+        showMessage("error", "❌ Please enter a valid name");
+        return;
+      }
+
+      if (!pin || pin.length !== 4) {
+        showMessage("error", "❌ PIN must be exactly 4 digits");
+        return;
+      }
+
+      document.getElementById("submit-btn").disabled = true;
+
+      try {
+        const response = await fetch(`${API}/api/approve`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            token: token,
+            pin: pin,
+            trustedName: name,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to set PIN");
+        }
+
+        document.getElementById("content").style.display = "none";
+        showMessage(
+          "success",
+          "✓ PIN set successfully! You can now approve unlock requests."
+        );
+
+        setTimeout(() => {
+          window.close();
+        }, 3000);
+      } catch (error) {
+        showMessage("error", `❌ ${error.message}`);
+        document.getElementById("submit-btn").disabled = false;
+      }
+    }
+
+    function cancelRequest() {
+      if (confirm("Cancel this request?")) {
+        window.close();
+      }
+    }
+
+    function showMessage(type, text) {
+      const el = document.getElementById("message");
+      el.className = type;
+      el.textContent = text;
+    }
+
+    // Load the request details
+    load();
+  </script>
 </body>
 </html>

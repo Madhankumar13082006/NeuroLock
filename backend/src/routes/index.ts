@@ -7,6 +7,11 @@ import { addContact, listContacts, deleteContact } from '../controllers/contacts
 import { addBlockedApp, listBlockedApps, removeBlockedApp } from '../controllers/apps.controller';
 import { getProfile, updateFcmToken } from '../controllers/user.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
+import {
+  getTrustedSetup,
+  postTrustedSetup,
+  postVerifyTrustedPin,
+} from '../controllers/trustedPin.controller';
 
 const router = Router();
 
@@ -42,5 +47,10 @@ router.get('/unlock/status/:id', authMiddleware, unlockStatus);
 // Approval (no auth — token-based)
 router.get('/approve/:token', getApprovalPage);
 router.post('/approve/:token', submitApproval);
+
+// Trusted PIN setup + verification
+router.get('/trusted/setup/:token', getTrustedSetup);
+router.post('/trusted/setup/:token', postTrustedSetup);
+router.post('/trusted/verify-pin', postVerifyTrustedPin);
 
 export default router;

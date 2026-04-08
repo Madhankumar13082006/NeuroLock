@@ -5,15 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendApprovalNotification = sendApprovalNotification;
 const firebase_admin_1 = __importDefault(require("firebase-admin"));
-if (!firebase_admin_1.default.apps.length) {
-    firebase_admin_1.default.initializeApp({
-        credential: firebase_admin_1.default.credential.cert({
-            projectId: process.env.FIREBASE_PROJECT_ID,
-            privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        }),
-    });
-}
+require("../config/firebaseAdmin");
 async function sendApprovalNotification(fcmToken, approvalToken, appName, userEmail) {
     const approvalUrl = `${process.env.APPROVAL_BASE_URL}/approve/${approvalToken}`;
     await firebase_admin_1.default.messaging().send({

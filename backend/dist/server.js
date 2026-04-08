@@ -9,6 +9,7 @@ const dotenv_1 = require("dotenv");
 const pino_1 = __importDefault(require("pino"));
 const routes_1 = __importDefault(require("./routes"));
 const path_1 = __importDefault(require("path"));
+require("./jobs/queue");
 (0, dotenv_1.config)();
 const app = (0, express_1.default)();
 const logger = (0, pino_1.default)({ transport: { target: 'pino-pretty' } });

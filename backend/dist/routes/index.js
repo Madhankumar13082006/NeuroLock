@@ -12,6 +12,7 @@ const contacts_controller_1 = require("../controllers/contacts.controller");
 const apps_controller_1 = require("../controllers/apps.controller");
 const user_controller_1 = require("../controllers/user.controller");
 const auth_middleware_1 = require("../middleware/auth.middleware");
+const trustedPin_controller_1 = require("../controllers/trustedPin.controller");
 const router = (0, express_1.Router)();
 const authLimiter = (0, express_rate_limit_1.default)({ windowMs: 15 * 60 * 1000, max: 20 });
 const unlockLimiter = (0, express_rate_limit_1.default)({ windowMs: 60 * 60 * 1000, max: 10 });
@@ -38,4 +39,8 @@ router.get('/unlock/status/:id', auth_middleware_1.authMiddleware, unlock_contro
 // Approval (no auth — token-based)
 router.get('/approve/:token', approval_controller_1.getApprovalPage);
 router.post('/approve/:token', approval_controller_1.submitApproval);
+// Trusted PIN setup + verification
+router.get('/trusted/setup/:token', trustedPin_controller_1.getTrustedSetup);
+router.post('/trusted/setup/:token', trustedPin_controller_1.postTrustedSetup);
+router.post('/trusted/verify-pin', trustedPin_controller_1.postVerifyTrustedPin);
 exports.default = router;
