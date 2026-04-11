@@ -25,22 +25,6 @@ class AppBlockerService : AccessibilityService() {
         private var lastYtShortsProbeMs = 0L
         private var lastSocialProbeMs = 0L
 
-        /**
-         * While protection is on, intercept system surfaces that can remove NOKKON
-         * or turn off accessibility (PIN required via lock screen).
-         */
-        private val restrictedPackages = setOf(
-            "com.google.android.packageinstaller",
-            "com.android.packageinstaller",
-            "com.miui.packageinstaller",
-            "com.samsung.android.packageinstaller",
-            "com.android.settings",
-            "com.android.vending",
-            "com.google.android.permissioncontroller",
-            "com.miui.securitycenter",
-            "com.huawei.systemmanager",
-        )
-
         fun updateBlockConfigJson(json: String) {
             rulesJson = json.ifBlank { "{}" }
         }
@@ -95,18 +79,19 @@ class AppBlockerService : AccessibilityService() {
         val inviteRotationPending = prefs.getBoolean(KEY_INVITE_ROTATION_PENDING, false)
         val unlocked = unlockUntil > System.currentTimeMillis()
 
-        val protectEnabled =
-            (pinSet || inviteRotationPending) && rulesJson != "{}" && rulesJson.isNotBlank()
         val rules = try {
             JSONObject(rulesJson)
         } catch (_: Exception) {
             JSONObject()
         }
         val hasRule = rules.has(pkg)
-        val isRestrictedAction = protectEnabled && pkg in restrictedPackages
+        // Anti-uninstall does not require block rules JSON to be non-empty (PIN alone is enough).
+        val needsAntiUninstallPin = (pinSet || inviteRotationPending) &&
+            AntiUninstallHeuristics.isSensitiveUninstallSurface(pkg) &&
+            AntiUninstallHeuristics.shouldRequirePinThrottled(this, event)
 
         if (unlocked) return
-        if (!hasRule && !isRestrictedAction) return
+        if (!hasRule && !needsAntiUninstallPin) return
 
         if (hasRule && !shouldBlockPackage(pkg, event, rules)) return
 
@@ -115,10 +100,10 @@ class AppBlockerService : AccessibilityService() {
         lastTriggered = pkg
         lastTime = now
 
-        val featuresForFlutter = if (hasRule) {
-            featureListForRules(rules, pkg)
-        } else {
-            listOf("restricted_surface")
+        val featuresForFlutter = when {
+            hasRule -> featureListForRules(rules, pkg)
+            needsAntiUninstallPin -> listOf("anti_uninstall_nokkon")
+            else -> listOf("restricted_surface")
         }
         BlockEventBridge.emitBlockTriggered(
             packageName = pkg,
@@ -127,7 +112,7 @@ class AppBlockerService : AccessibilityService() {
             eventType = event.eventType,
         )
 
-        val lockTarget = if (pkg in restrictedPackages) packageName else pkg
+        val lockTarget = if (needsAntiUninstallPin) packageName else pkg
         val intent = Intent(this, MainActivity::class.java).apply {
             action = Intent.ACTION_VIEW
             putExtra("route", "/lock/$lockTarget")

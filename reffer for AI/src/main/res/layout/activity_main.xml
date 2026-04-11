@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".activity.MainActivity">
+
+<!--    <Toolbar-->
+<!--        android:id="@+id/appBarLayout"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:layout_alignParentTop="true"-->
+<!--        android:title="@string/app_name"-->
+<!--        android:titleTextColor="@color/white"-->
+
+<!--        >-->
+
+<!--        <TextView-->
+<!--            android:id="@+id/toolbar_title"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:text="@string/app_name"-->
+<!--            android:textAlignment="center"-->
+<!--            android:textSize="22sp"-->
+<!--            android:textColor="@color/black" />-->
+<!--    </Toolbar>-->
+
+
+
+
+    <!-- FrameLayout to hold the fragments -->
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/nav_host_fragment"
+        app:navGraph="@navigation/nav_graph"
+        app:defaultNavHost="true"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:name="androidx.navigation.fragment.NavHostFragment"
+        android:layout_above="@id/bottomBar" />
+
+    <!-- ReadableBottomBar -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomBar"
+
+        android:layout_width="match_parent"
+        app:menu="@menu/navigation_menu"
+        android:layout_alignParentBottom="true"
+        android:layout_height="wrap_content"/>
+
+
+</RelativeLayout>
