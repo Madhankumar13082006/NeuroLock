@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.md$|^d\")",
+      "Bash(ls -la /k/projects/impulse-control/.claude/worktrees/pedantic-curie/backend/.env*)",
+      "Bash(xargs ls:*)",
+      "Bash(xargs basename:*)",
+      "Bash(flutter analyze:*)"
+    ]
+  }
+}

@@ -12,6 +12,7 @@ import {
   postTrustedSetup,
   postVerifyTrustedPin,
 } from '../controllers/trustedPin.controller';
+import { getInvitePinPage } from '../controllers/invitePage.controller';
 
 const router = Router();
 
@@ -52,5 +53,8 @@ router.post('/approve/:token', submitApproval);
 router.get('/trusted/setup/:token', getTrustedSetup);
 router.post('/trusted/setup/:token', postTrustedSetup);
 router.post('/trusted/verify-pin', postVerifyTrustedPin);
+
+// Browser PIN page (local LAN): http://<PC_IP>:3000/invite/<token>
+router.get('/invite/:token', getInvitePinPage);
 
 export default router;

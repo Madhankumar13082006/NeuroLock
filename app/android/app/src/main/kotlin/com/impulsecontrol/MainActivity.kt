@@ -3,6 +3,8 @@ package com.impulsecontrol
 import android.content.Intent
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
+import org.json.JSONArray
+import org.json.JSONObject
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
@@ -13,6 +15,7 @@ class MainActivity : FlutterActivity() {
     private val PREFS = "impulse_control"
     private val KEY_UNLOCK_UNTIL = "unlock_until_ms"
     private val KEY_PIN_SET = "pin_set"
+    private val KEY_INVITE_ROTATION_PENDING = "invite_rotation_pending"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -29,7 +32,23 @@ class MainActivity : FlutterActivity() {
                     }
                     "setBlockedApps" -> {
                         val packages = call.argument<List<String>>("packages") ?: emptyList()
-                        AppBlockerService.updateBlockedApps(packages)
+                        val o = JSONObject()
+                        for (p in packages) {
+                            o.put(p, JSONArray().put("__full__"))
+                        }
+                        val json = o.toString()
+                        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                            .putString("blocked_rules_json", json)
+                            .commit()
+                        AppBlockerService.updateBlockConfigJson(json)
+                        result.success(null)
+                    }
+                    "setBlockConfig" -> {
+                        val json = call.argument<String>("rulesJson") ?: "{}"
+                        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                            .putString("blocked_rules_json", json)
+                            .commit()
+                        AppBlockerService.updateBlockConfigJson(json)
                         result.success(null)
                     }
                     "setUnlockUntilMs" -> {
@@ -37,7 +56,7 @@ class MainActivity : FlutterActivity() {
                         getSharedPreferences(PREFS, MODE_PRIVATE)
                             .edit()
                             .putLong(KEY_UNLOCK_UNTIL, untilMs ?: 0L)
-                            .apply()
+                            .commit()
                         result.success(null)
                     }
                     "setPinSet" -> {
@@ -45,8 +64,21 @@ class MainActivity : FlutterActivity() {
                         getSharedPreferences(PREFS, MODE_PRIVATE)
                             .edit()
                             .putBoolean(KEY_PIN_SET, isPinSet)
-                            .apply()
+                            .commit()
                         result.success(null)
+                    }
+                    "setInviteRotationPending" -> {
+                        val pending = call.argument<Boolean>("pending") ?: false
+                        getSharedPreferences(PREFS, MODE_PRIVATE)
+                            .edit()
+                            .putBoolean(KEY_INVITE_ROTATION_PENDING, pending)
+                            .commit()
+                        result.success(null)
+                    }
+                    "isInviteRotationPending" -> {
+                        val v = getSharedPreferences(PREFS, MODE_PRIVATE)
+                            .getBoolean(KEY_INVITE_ROTATION_PENDING, false)
+                        result.success(v)
                     }
                     else -> result.notImplemented()
                 }

@@ -5,6 +5,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import '../../core/constants.dart';
 
+class PinVerifyResult {
+  final bool ok;
+  final int? unlockUntilMs;
+  final String? message;
+
+  const PinVerifyResult({
+    required this.ok,
+    this.unlockUntilMs,
+    this.message,
+  });
+}
+
 class LockStateDoc {
   final bool isLocked;
   final bool isPinSet;
@@ -19,9 +31,14 @@ class LockStateDoc {
   });
 
   factory LockStateDoc.fromMap(Map<String, dynamic> data) {
+    final hash = data['currentPIN'];
+    // Only treat PIN as configured when the bcrypt hash exists. A bare
+    // `isPinSet: true` without `currentPIN` came from an older app bug and
+    // would hide invite links and block PIN verification.
+    final hasBcryptPin = hash is String && hash.isNotEmpty;
     return LockStateDoc(
       isLocked: (data['isLocked'] as bool?) ?? true,
-      isPinSet: (data['isPinSet'] as bool?) ?? false,
+      isPinSet: hasBcryptPin,
       unlockExpiry: (data['unlockExpiry'] as Timestamp?)?.toDate(),
       delayTimer: (data['delayTimer'] as Timestamp?)?.toDate(),
     );
@@ -98,7 +115,7 @@ class FirebaseService {
       {required String packageName,
       required List<String> blockedFeatures}) async {
     final token = _generateToken();
-    final expiresAt = DateTime.now().add(const Duration(hours: 48));
+    final expiresAt = DateTime.now().add(const Duration(hours: 24));
 
     await _db.collection('approval_links').doc(token).set({
       'uid': uid,
@@ -112,8 +129,8 @@ class FirebaseService {
       'unlockedUntil': null,
     });
 
-    // Hosted approval page (backend serves static /approve/approve.html)
-    return '${AppConstants.baseUrl}/approve/approve.html?token=$token';
+    // Same machine as Node API — GET /invite/:token serves the PIN page (local dev).
+    return '${AppConstants.inviteLinkBase}/invite/$token';
   }
 
   String _generateToken() {
@@ -123,6 +140,7 @@ class FirebaseService {
     return List.generate(24, (_) => chars[rng.nextInt(chars.length)]).join();
   }
 
+  /// True after a trusted contact has stored a PIN (hash) for this account.
   Future<bool> hasTrustedPinSetup() async {
     final state = await getLockState();
     return state.isPinSet;
@@ -151,30 +169,143 @@ class FirebaseService {
     return LockStateDoc.fromMap(doc.data() ?? {});
   }
 
-  Future<bool> verifyPin(String pin) async {
+  /// Checks the PIN with the trusted API but does **not** open an unlock window
+  /// or write [unlockExpiry]. Use before clearing the PIN for a new invite link.
+  Future<PinVerifyResult> verifyPinIdentityOnly(String pin) async {
     final idToken = await _auth.currentUser?.getIdToken();
-    if (idToken == null) return false;
-    final res = await http.post(
-      Uri.parse('${AppConstants.baseUrl}/trusted/verify-pin'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'idToken': idToken, 'pin': pin}),
-    );
-    if (res.statusCode != 200) return false;
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-    final unlockUntil = body['unlockUntilMs'] as num?;
-    if (unlockUntil != null) {
-      await _db
-          .collection('users')
-          .doc(uid)
-          .collection('lock_state')
-          .doc('main')
-          .set({
-        'unlockExpiry': Timestamp.fromMillisecondsSinceEpoch(unlockUntil.toInt()),
-        'isLocked': true,
-        'isPinSet': true,
-      }, SetOptions(merge: true));
+    if (idToken == null) {
+      return const PinVerifyResult(
+        ok: false,
+        message: 'Not signed in. Open NOKKON and log in again.',
+      );
     }
-    return body['ok'] == true;
+    final apiRoot = AppConstants.baseUrlNormalized;
+    if (!apiRoot.startsWith('http')) {
+      return const PinVerifyResult(
+        ok: false,
+        message: 'Invalid API URL in app settings (must start with http).',
+      );
+    }
+    final uri = Uri.parse('$apiRoot/trusted/verify-pin');
+    try {
+      final res = await http
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'idToken': idToken, 'pin': pin}),
+          )
+          .timeout(const Duration(seconds: 25));
+
+      Map<String, dynamic>? body;
+      try {
+        body = jsonDecode(res.body) as Map<String, dynamic>?;
+      } catch (_) {
+        body = null;
+      }
+
+      if (res.statusCode != 200) {
+        final err = body?['error']?.toString() ??
+            body?['message']?.toString() ??
+            'Server returned ${res.statusCode}';
+        return PinVerifyResult(
+          ok: false,
+          message: res.statusCode == 401
+              ? 'Wrong PIN, or PIN not saved yet. Ask your friend to finish the invite link.'
+              : err,
+        );
+      }
+
+      final ok = body?['ok'] == true;
+      if (!ok) {
+        return PinVerifyResult(
+          ok: false,
+          message: body?['error']?.toString() ?? 'Wrong PIN',
+        );
+      }
+      return const PinVerifyResult(ok: true);
+    } catch (e) {
+      return PinVerifyResult(
+        ok: false,
+        message:
+            'Cannot reach API at $apiRoot - same Wi-Fi as your PC? Fix IP in '
+            'lib/core/constants.dart and use cleartext HTTP only on LAN.\n($e)',
+      );
+    }
+  }
+
+  Future<PinVerifyResult> verifyPin(String pin) async {
+    final idToken = await _auth.currentUser?.getIdToken();
+    if (idToken == null) {
+      return const PinVerifyResult(
+        ok: false,
+        message: 'Not signed in. Open NOKKON and log in again.',
+      );
+    }
+    final apiRoot = AppConstants.baseUrlNormalized;
+    if (!apiRoot.startsWith('http')) {
+      return const PinVerifyResult(
+        ok: false,
+        message: 'Invalid API URL in app settings (must start with http).',
+      );
+    }
+    final uri = Uri.parse('$apiRoot/trusted/verify-pin');
+    try {
+      final res = await http
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'idToken': idToken, 'pin': pin}),
+          )
+          .timeout(const Duration(seconds: 25));
+
+      Map<String, dynamic>? body;
+      try {
+        body = jsonDecode(res.body) as Map<String, dynamic>?;
+      } catch (_) {
+        body = null;
+      }
+
+      if (res.statusCode != 200) {
+        final err = body?['error']?.toString() ??
+            body?['message']?.toString() ??
+            'Server returned ${res.statusCode}';
+        return PinVerifyResult(
+          ok: false,
+          message: res.statusCode == 401
+              ? 'Wrong PIN, or PIN not saved yet. Ask your friend to finish the invite link.'
+              : err,
+        );
+      }
+
+      final unlockUntil = body?['unlockUntilMs'] as num?;
+      final ok = body?['ok'] == true;
+      if (ok && unlockUntil != null) {
+        await _db
+            .collection('users')
+            .doc(uid)
+            .collection('lock_state')
+            .doc('main')
+            .set({
+          'unlockExpiry':
+              Timestamp.fromMillisecondsSinceEpoch(unlockUntil.toInt()),
+          'isLocked': true,
+          'isPinSet': true,
+        }, SetOptions(merge: true));
+        return PinVerifyResult(ok: true, unlockUntilMs: unlockUntil.toInt());
+      }
+      return PinVerifyResult(
+        ok: ok,
+        unlockUntilMs: unlockUntil?.toInt(),
+        message: ok ? null : (body?['error']?.toString() ?? 'Could not unlock'),
+      );
+    } catch (e) {
+      return PinVerifyResult(
+        ok: false,
+        message:
+            'Cannot reach API at $apiRoot - same Wi-Fi as your PC? Fix IP in '
+            'lib/core/constants.dart and use cleartext HTTP only on LAN.\n($e)',
+      );
+    }
   }
 
   Future<bool> isUnlocked() async {
@@ -199,6 +330,9 @@ class FirebaseService {
   }
 
   // ── UNLOCK STATE ──────────────────────────────────────────
+  /// Temporary unlock window (e.g. after 20-minute wait). Must not set
+  /// `isPinSet` or the app will think a trusted PIN already exists and
+  /// will stop offering invite links.
   Future<void> saveLocalUnlock(DateTime until) async {
     await _db
         .collection('users')
@@ -208,7 +342,35 @@ class FirebaseService {
         .set({
       'unlockExpiry': Timestamp.fromDate(until),
       'isLocked': true,
-      'isPinSet': true,
+    }, SetOptions(merge: true));
+  }
+
+  /// Clears temporary unlock so Firestore matches the device after a session ends.
+  Future<void> clearUnlockExpiry() async {
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('lock_state')
+        .doc('main')
+        .set(
+      {'unlockExpiry': FieldValue.delete()},
+      SetOptions(merge: true),
+    );
+  }
+
+  /// Clears the trusted PIN after a PIN-based unlock window expires, so the
+  /// user must generate a new invite link and ask their friend to set a new PIN.
+  Future<void> clearCurrentPin() async {
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('lock_state')
+        .doc('main')
+        .set({
+      'currentPIN': FieldValue.delete(),
+      'previousPIN': FieldValue.delete(),
+      'previousPINExpiry': FieldValue.delete(),
+      'isPinSet': false,
     }, SetOptions(merge: true));
   }
 

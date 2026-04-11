@@ -1,0 +1,51 @@
+name: nokkon
+description: Control addictive app usage with trusted person accountability
+
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase (replaces all backend API calls)
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.16.0
+  cloud_firestore: ^4.15.5
+  firebase_dynamic_links: ^5.4.12
+
+  # State management
+  flutter_riverpod: ^2.4.9
+
+  # Navigation
+  go_router: ^13.0.1
+
+  # UI
+  cupertino_icons: ^1.0.6
+  fl_chart: ^0.67.0
+
+  # WhatsApp sharing
+  url_launcher: ^6.2.5
+
+  # Local storage for blocked app settings
+  shared_preferences: ^2.2.2
+  installed_apps: ^2.1.1
+  http: ^1.6.0
+
+  # Real installed apps detection
+  # device_apps: 2.2.0  # Temporarily disabled due to Gradle namespace issue
+  # installed_apps: ^1.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/quotes.json

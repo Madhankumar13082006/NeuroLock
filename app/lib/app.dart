@@ -5,9 +5,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'core/theme.dart';
 import 'presentation/screens/login_screen.dart';
 import 'presentation/screens/register_screen.dart';
-import 'presentation/screens/home_screen.dart';
-import 'presentation/screens/contacts_screen.dart';
+import 'presentation/screens/main_shell_screen.dart';
 import 'presentation/screens/lock_overlay_screen.dart';
+
+final GlobalKey<NavigatorState> _rootNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'root');
 
 class _GoRouterRefreshStream extends ChangeNotifier {
   _GoRouterRefreshStream(Stream<dynamic> stream) {
@@ -24,25 +26,21 @@ class _GoRouterRefreshStream extends ChangeNotifier {
 }
 
 final _router = GoRouter(
-  // If anonymous auth works, redirect() will push users to /home immediately.
-  initialLocation: '/home',
+  navigatorKey: _rootNavigatorKey,
+  initialLocation: '/login',
   refreshListenable:
       _GoRouterRefreshStream(FirebaseAuth.instance.authStateChanges()),
   redirect: (ctx, state) {
     final user = FirebaseAuth.instance.currentUser;
-    final onAuth = state.matchedLocation == '/login' ||
-        state.matchedLocation == '/register';
+    final loc = state.matchedLocation;
+    final onAuth = loc == '/login' || loc == '/register';
 
-    // Not logged in and not on login/register → redirect to login
     if (user == null && !onAuth) {
       return '/login';
     }
-
-    // Logged in and on login/register → redirect to home
     if (user != null && onAuth) {
       return '/home';
     }
-
     return null;
   },
   routes: [
@@ -50,24 +48,18 @@ final _router = GoRouter(
     GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
     GoRoute(
       path: '/home',
-      builder: (_, __) => const HomeScreen(),
-      routes: [
-        GoRoute(
-          path: 'contacts',
-          builder: (_, __) => const ContactsScreen(),
-        ),
-        GoRoute(
-          path: 'lock/:packageName',
-          builder: (_, state) => LockOverlayScreen(
-            packageName: state.pathParameters['packageName'] ?? '',
-          ),
-        ),
-      ],
+      builder: (_, __) => const MainShellScreen(),
+    ),
+    GoRoute(
+      path: '/lock/:packageName',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (_, state) => LockOverlayScreen(
+        packageName: state.pathParameters['packageName'] ?? '',
+      ),
     ),
   ],
 );
 
-/// Used by Android accessibility service to force navigation.
 void appRouterGo(String route) {
   _router.go(route);
 }
@@ -78,7 +70,7 @@ class NokkonApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Nokkon',
+      title: 'NOKKON',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
       routerConfig: _router,

@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/services/firebase_service.dart';
+import '../../platform/method_channel.dart';
 import 'auth_provider.dart';
+import 'unlock_provider.dart';
 
 class BlockNotifier extends StateNotifier<Map<String, bool>> {
   final String packageName;
@@ -67,6 +71,24 @@ class BlockNotifier extends StateNotifier<Map<String, bool>> {
       }
     }
     return result;
+  }
+
+  /// Pushes per-app feature rules to Android (Shorts-only vs whole app, etc.).
+  static Future<void> syncNativeBlockConfig(UnlockState lock) async {
+    final rotation = await PlatformBridge.isInviteRotationPending();
+    if (!lock.isPinSet && !rotation) {
+      await PlatformBridge.setBlockConfig('{}');
+      return;
+    }
+    final active = await getAllActiveBlocks();
+    if (active.isEmpty) {
+      await PlatformBridge.setBlockConfig('{}');
+      return;
+    }
+    final jsonMap = <String, dynamic>{
+      for (final e in active.entries) e.key: e.value.toList(),
+    };
+    await PlatformBridge.setBlockConfig(jsonEncode(jsonMap));
   }
 }
 

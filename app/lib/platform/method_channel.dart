@@ -30,6 +30,12 @@ class PlatformBridge {
     }
   }
 
+  /// Per-package feature keys, e.g. `{"com.google.android.youtube":["shorts"]}`.
+  /// Native service uses this for Shorts-only vs full-app blocking.
+  static Future<void> setBlockConfig(String rulesJson) =>
+      _ch.invokeMethod('setBlockConfig', {'rulesJson': rulesJson});
+
+  @Deprecated('Use setBlockConfig with full rules map')
   static Future<void> setBlockedApps(List<String> packages) =>
       _ch.invokeMethod('setBlockedApps', {'packages': packages});
 
@@ -38,4 +44,18 @@ class PlatformBridge {
 
   static Future<void> setPinSet(bool isPinSet) =>
       _ch.invokeMethod('setPinSet', {'isPinSet': isPinSet});
+
+  /// While true, accessibility blocking stays armed using existing rules even
+  /// if the trusted PIN was cleared for a fresh invite link.
+  static Future<void> setInviteRotationPending(bool pending) =>
+      _ch.invokeMethod('setInviteRotationPending', {'pending': pending});
+
+  static Future<bool> isInviteRotationPending() async {
+    try {
+      final v = await _ch.invokeMethod('isInviteRotationPending');
+      return v == true;
+    } catch (_) {
+      return false;
+    }
+  }
 }

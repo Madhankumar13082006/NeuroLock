@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/services/firebase_service.dart';
 import '../../platform/method_channel.dart';
@@ -32,6 +33,11 @@ class UnlockNotifier extends StateNotifier<UnlockState> {
   final FirebaseService _svc;
   Timer? _timer;
   StreamSubscription<LockStateDoc>? _sub;
+  // Tracks whether the active unlock window was opened by entering the PIN
+  // (vs. the 20-minute delay escape route). When a PIN-based unlock expires we
+  // must clear the stored PIN hash so the user has to send a fresh invite link
+  // and their trusted contact sets a brand-new PIN.
+  bool _unlockedViaPin = false;
 
   UnlockNotifier(this._svc) : super(const UnlockState()) {
     _startWatching();
@@ -41,7 +47,8 @@ class UnlockNotifier extends StateNotifier<UnlockState> {
     _sub?.cancel();
     _sub = _svc.watchLockState().listen((doc) async {
       final now = DateTime.now();
-      final unlocked = doc.unlockExpiry != null && doc.unlockExpiry!.isAfter(now);
+      final unlocked =
+          doc.unlockExpiry != null && doc.unlockExpiry!.isAfter(now);
       state = UnlockState(
         isLocked: doc.isLocked,
         isPinSet: doc.isPinSet,
@@ -50,48 +57,105 @@ class UnlockNotifier extends StateNotifier<UnlockState> {
         delayTimer: doc.delayTimer,
       );
       await PlatformBridge.setPinSet(doc.isPinSet);
+      if (doc.isPinSet) {
+        await PlatformBridge.setInviteRotationPending(false);
+      }
       await PlatformBridge.setUnlockUntilMs(
         unlocked ? doc.unlockExpiry!.millisecondsSinceEpoch : null,
       );
       if (unlocked) {
-        _startExpiryTimer();
+        _scheduleUnlockExpiryTimer();
       } else {
         _timer?.cancel();
       }
     });
   }
 
-  Future<bool> unlockWithPin(String pin) async {
-    if (!state.isPinSet) return false;
-    final ok = await _svc.verifyPin(pin);
-    if (!ok) return false;
-    return true;
+  Future<void> _onUnlockWindowEnded() async {
+    _timer?.cancel();
+    final wasPin = _unlockedViaPin;
+    _unlockedViaPin = false;
+    try {
+      await _svc.clearUnlockExpiry();
+      // If the unlock was granted via the trusted PIN, invalidate that PIN now.
+      // This forces the user to generate a fresh invite link and have their
+      // trusted contact set a brand-new PIN before the feature can be unlocked
+      // again — preventing them from silently reusing the old PIN.
+      if (wasPin) await _svc.clearCurrentPin();
+    } catch (_) {}
+    state = UnlockState(
+      isLocked: state.isLocked,
+      // If PIN was cleared above, reflect that immediately in local state so the
+      // UI shows "Generate invite link" without waiting for the Firestore stream.
+      isPinSet: wasPin ? false : state.isPinSet,
+      isUnlocked: false,
+      expiresAt: null,
+      delayTimer: state.delayTimer,
+    );
+    await PlatformBridge.setUnlockUntilMs(null);
+    if (wasPin) {
+      await PlatformBridge.setPinSet(false);
+      await PlatformBridge.setInviteRotationPending(false);
+    }
+  }
+
+  void _scheduleUnlockExpiryTimer() {
+    _timer?.cancel();
+    final exp = state.expiresAt;
+    if (exp == null) return;
+    final ms = exp.difference(DateTime.now()).inMilliseconds;
+    if (ms <= 0) {
+      unawaited(_onUnlockWindowEnded());
+      return;
+    }
+    final wait = ms.clamp(500, 24 * 60 * 60 * 1000);
+    _timer = Timer(Duration(milliseconds: wait), () {
+      unawaited(_onUnlockWindowEnded());
+    });
+  }
+
+  /// Returns `null` on success, or an error message for the UI.
+  Future<String?> unlockWithPin(String pin) async {
+    if (!state.isPinSet) {
+      return 'PIN is not set yet. Ask your friend to open the invite link first.';
+    }
+    final res = await _svc.verifyPin(pin);
+    if (!res.ok) {
+      return res.message ?? 'Invalid PIN';
+    }
+    if (res.unlockUntilMs != null) {
+      _unlockedViaPin = true; // mark so expiry clears the PIN hash
+      final until =
+          DateTime.fromMillisecondsSinceEpoch(res.unlockUntilMs!);
+      state = UnlockState(
+        isLocked: state.isLocked,
+        isPinSet: state.isPinSet,
+        isUnlocked: true,
+        expiresAt: until,
+        delayTimer: state.delayTimer,
+      );
+      await PlatformBridge.setUnlockUntilMs(res.unlockUntilMs!);
+      await PlatformBridge.setPinSet(true);
+      _scheduleUnlockExpiryTimer();
+    }
+    return null;
   }
 
   Future<void> grantDelayedAccess({required Function() onUnlocked}) async {
-    final expiry = DateTime.now().add(const Duration(minutes: 10));
+    _unlockedViaPin = false; // delay path — do NOT clear PIN on expiry
+    final expiry = DateTime.now().add(const Duration(hours: 1));
     await _svc.saveLocalUnlock(expiry);
-    state = UnlockState(isUnlocked: true, expiresAt: expiry);
+    state = UnlockState(
+      isLocked: state.isLocked,
+      isPinSet: state.isPinSet,
+      isUnlocked: true,
+      expiresAt: expiry,
+      delayTimer: state.delayTimer,
+    );
     await PlatformBridge.setUnlockUntilMs(expiry.millisecondsSinceEpoch);
-    _startExpiryTimer();
+    await PlatformBridge.setPinSet(state.isPinSet);
+    _scheduleUnlockExpiryTimer();
     onUnlocked();
-  }
-
-  void _startExpiryTimer() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (state.expired) {
-        state = UnlockState(
-          isLocked: state.isLocked,
-          isPinSet: state.isPinSet,
-          isUnlocked: false,
-          expiresAt: null,
-          delayTimer: state.delayTimer,
-        );
-        _timer?.cancel();
-        PlatformBridge.setUnlockUntilMs(null);
-      }
-    });
   }
 
   void lock() {

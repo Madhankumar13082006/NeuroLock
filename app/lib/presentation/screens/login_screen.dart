@@ -28,47 +28,66 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final loading = st.status == AuthStatus.loading;
 
     return Scaffold(
+      backgroundColor: AppTheme.bg,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(28, 60, 28, 28),
+          padding: const EdgeInsets.fromLTRB(28, 56, 28, 28),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Logo
               Center(
                 child: Container(
-                  width: 80,
-                  height: 80,
+                  width: 88,
+                  height: 88,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppTheme.primary, Color(0xFF4A90D9)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                    color: AppTheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(
+                      color: AppTheme.primary.withValues(alpha: 0.35),
                     ),
-                    borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                          color: AppTheme.primary.withValues(alpha: 0.4),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8))
+                        color: AppTheme.primary.withValues(alpha: 0.2),
+                        blurRadius: 28,
+                        offset: const Offset(0, 10),
+                      ),
                     ],
                   ),
                   child: const Icon(Icons.shield_rounded,
-                      size: 44, color: Colors.white),
+                      size: 46, color: AppTheme.primary),
                 ),
               ),
-              const SizedBox(height: 28),
-              const Text('Welcome Back',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary)),
-              const SizedBox(height: 6),
-              const Text('Sign in to manage your digital wellness',
-                  textAlign: TextAlign.center,
-                  style:
-                      TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+              const SizedBox(height: 24),
+              const Text(
+                'NOKKON',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Welcome back',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Sign in to manage in-app blocking and invite links',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppTheme.textSecondary.withValues(alpha: 0.9),
+                  fontSize: 14,
+                  height: 1.35,
+                ),
+              ),
               const SizedBox(height: 44),
               _label('Email Address'),
               const SizedBox(height: 8),
@@ -128,8 +147,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         height: 22,
                         width: 22,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Text('Sign In'),
+                          strokeWidth: 2,
+                          color: Color(0xFF1A1A1A),
+                        ),
+                      )
+                    : const Text('Sign in'),
               ),
               const SizedBox(height: 20),
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [

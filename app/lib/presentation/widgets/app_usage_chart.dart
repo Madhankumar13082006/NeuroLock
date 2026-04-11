@@ -4,12 +4,10 @@ import '../../core/theme.dart';
 
 class AppUsageChart extends StatelessWidget {
   final Map<String, double> usageData;
-  final Color appColor;
 
   const AppUsageChart({
     super.key,
     required this.usageData,
-    required this.appColor,
   });
 
   static const _colors = [
@@ -22,20 +20,39 @@ class AppUsageChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final entries = usageData.entries.toList();
+    final sorted = usageData.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final entries = sorted;
+
+    final top = entries.isNotEmpty ? entries.first : null;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Last 7 Days of Usage',
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+          Row(
+            children: [
+              Text(
+                'Last 7 days of usage',
+                style: TextStyle(
+                  color: AppTheme.textSecondary.withValues(alpha: 0.95),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(
+                Icons.info_outline_rounded,
+                size: 16,
+                color: AppTheme.textSecondary.withValues(alpha: 0.65),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Legend
               Expanded(
                 flex: 2,
                 child: Column(
@@ -43,25 +60,33 @@ class AppUsageChart extends StatelessWidget {
                   children: List.generate(entries.length, (i) {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(children: [
-                        Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: _colors[i % _colors.length],
-                            shape: BoxShape.circle,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: _colors[i % _colors.length],
+                              shape: BoxShape.circle,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(entries[i].key,
-                            style: const TextStyle(
-                                color: AppTheme.textSecondary, fontSize: 12)),
-                      ]),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              entries[i].key,
+                              style: TextStyle(
+                                color: AppTheme.textSecondary.withValues(alpha: 0.95),
+                                fontSize: 12,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     );
                   }),
                 ),
               ),
-              // Donut chart
               Expanded(
                 flex: 3,
                 child: SizedBox(
@@ -84,30 +109,32 @@ class AppUsageChart extends StatelessWidget {
                           ),
                         ),
                       ),
-                      // Center label for largest segment
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '${entries.first.value.toStringAsFixed(1)}%',
-                            style: const TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                      if (top != null)
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${top.value.toStringAsFixed(1)}%',
+                              style: const TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          Text(
-                            entries.first.key,
-                            style: const TextStyle(
-                                color: AppTheme.textSecondary, fontSize: 10),
-                          ),
-                        ],
-                      ),
+                            Text(
+                              top.key,
+                              style: TextStyle(
+                                color: AppTheme.textSecondary.withValues(alpha: 0.85),
+                                fontSize: 10,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),
               ),
-              // Percentages on right
               Expanded(
                 flex: 2,
                 child: Column(
