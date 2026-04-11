@@ -6,46 +6,55 @@ let unlockQueue: Queue | null = null;
 let fallbackWorker: Worker | null = null;
 
 // Initialize queue only if Redis is available
-try {
-  if (redis.status === 'ready' || redis.status === 'connecting') {
+// Only initialize BullMQ queue/worker when a real Redis connection is available.
+// Our redis config exports a stub with `status === 'disabled'` when REDIS_URL
+// is not configured to avoid noisy connection errors during local dev.
+if (redis && redis.status !== 'disabled') {
+  try {
     unlockQueue = new Queue('unlock', { connection: redis });
 
     // Fallback job: auto-unlock after 20 min if no approval
-    fallbackWorker = new Worker('unlock', async (job: Job) => {
-      if (job.name === 'fallback') {
-        const { requestId } = job.data;
-        const result = await pool.query(
-          `UPDATE unlock_requests
+    fallbackWorker = new Worker(
+      'unlock',
+      async (job: Job) => {
+        if (job.name === 'fallback') {
+          const { requestId } = job.data;
+          const result = await pool.query(
+            `UPDATE unlock_requests
            SET status = 'FALLBACK', unlocked_at = NOW(),
                expires_at = NOW() + INTERVAL '30 minutes'
            WHERE id = $1 AND status IN ('REQUESTED','WAITING')
            RETURNING id`,
-          [requestId]
-        );
-        if (result.rows.length > 0) {
-          // Schedule expiry job
-          if (unlockQueue) {
-            await unlockQueue.add(
-              'expire',
-              { requestId },
-              { delay: parseInt(process.env.UNLOCK_DURATION_MS || '1800000') }
-            );
+            [requestId]
+          );
+          if (result.rows.length > 0) {
+            // Schedule expiry job
+            if (unlockQueue) {
+              await unlockQueue.add(
+                'expire',
+                { requestId },
+                { delay: parseInt(process.env.UNLOCK_DURATION_MS || '1800000') }
+              );
+            }
           }
         }
-      }
 
-      if (job.name === 'expire') {
-        const { requestId } = job.data;
-        await pool.query(
-          `UPDATE unlock_requests SET status = 'EXPIRED'
+        if (job.name === 'expire') {
+          const { requestId } = job.data;
+          await pool.query(
+            `UPDATE unlock_requests SET status = 'EXPIRED'
            WHERE id = $1 AND status IN ('UNLOCKED','APPROVED','FALLBACK')`,
-          [requestId]
-        );
-      }
-    }, { connection: redis });
+            [requestId]
+          );
+        }
+      },
+      { connection: redis }
+    );
+  } catch (err) {
+    console.warn('Redis not available, queue workers disabled:', (err as Error).message);
   }
-} catch (err) {
-  console.warn('Redis not available, queue workers disabled:', (err as Error).message);
+} else {
+  console.info('Redis disabled: queue workers not started (set REDIS_URL to enable)');
 }
 
 export { unlockQueue, fallbackWorker };
