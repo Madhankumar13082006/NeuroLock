@@ -32,9 +32,12 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
 
   String get _appLabel {
     const map = {
+      'com.impulsecontrol': 'NOKKON',
       'com.google.android.youtube': 'YouTube',
       'com.instagram.android': 'Instagram',
       'com.snapchat.android': 'Snapchat',
+      'com.android.settings': 'Settings',
+      'com.android.vending': 'Google Play',
     };
     return map[widget.packageName] ?? 'App';
   }

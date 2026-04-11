@@ -4,9 +4,9 @@ import android.accessibilityservice.AccessibilityService
 import android.view.accessibility.AccessibilityEvent
 
 /**
- * OverlayService - handles display of overlay windows if needed
- * For now, we're using Flutter's native overlay which doesn't require
- * a separate Android overlay service
+ * Placeholder second accessibility entry (manifest). The real UX is a
+ * full-screen Flutter route: [MainActivity] + `/lock/:packageName` from
+ * [AppBlockerService] (same as a draw-over-app overlay for PIN / wait flow).
  */
 class OverlayService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}

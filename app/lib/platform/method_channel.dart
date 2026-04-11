@@ -1,21 +1,51 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class PlatformBridge {
   static const _ch = MethodChannel('com.impulsecontrol/bridge');
   static void Function(String route)? _onNavigate;
+  static void Function(Map<String, dynamic> payload)? _onBlockTriggered;
 
-  /// Call once at app startup to receive navigation events from Android.
+  /// Call once at app startup. Prefer [initBridge] to also receive block events.
   static void initNavigation(void Function(String route) onNavigate) {
+    initBridge(onNavigate: onNavigate, onBlockTriggered: null);
+  }
+
+  /// Registers navigation from the accessibility service and optional block
+  /// telemetry when a feature-level block fires on Android.
+  static void initBridge({
+    required void Function(String route) onNavigate,
+    void Function(Map<String, dynamic> payload)? onBlockTriggered,
+  }) {
     _onNavigate = onNavigate;
+    _onBlockTriggered = onBlockTriggered;
     _ch.setMethodCallHandler((call) async {
-      if (call.method == 'navigate') {
-        final route = call.arguments as String?;
-        if (route != null && route.isNotEmpty) {
-          _onNavigate?.call(route);
-        }
-        return null;
+      switch (call.method) {
+        case 'navigate':
+          final route = call.arguments as String?;
+          if (route != null && route.isNotEmpty) {
+            _onNavigate?.call(route);
+          }
+          return null;
+        case 'onBlockTriggered':
+          final args = call.arguments;
+          if (_onBlockTriggered != null && args is Map) {
+            try {
+              _onBlockTriggered!(Map<String, dynamic>.from(args));
+            } catch (e, st) {
+              FlutterError.reportError(
+                FlutterErrorDetails(
+                  exception: e,
+                  stack: st,
+                  library: 'PlatformBridge',
+                ),
+              );
+            }
+          }
+          return null;
+        default:
+          return null;
       }
-      return null;
     });
   }
 

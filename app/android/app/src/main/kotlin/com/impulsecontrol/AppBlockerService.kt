@@ -8,7 +8,6 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import io.flutter.embedding.android.FlutterActivity
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -18,21 +17,28 @@ class AppBlockerService : AccessibilityService() {
         private const val PREFS = "impulse_control"
         private const val KEY_RULES_JSON = "blocked_rules_json"
         private const val KEY_INVITE_ROTATION_PENDING = "invite_rotation_pending"
-        private const val YOUTUBE = "com.google.android.youtube"
-
         @Volatile
         private var rulesJson: String = "{}"
 
         private var lastTriggered = ""
         private var lastTime = 0L
         private var lastYtShortsProbeMs = 0L
+        private var lastSocialProbeMs = 0L
 
+        /**
+         * While protection is on, intercept system surfaces that can remove NOKKON
+         * or turn off accessibility (PIN required via lock screen).
+         */
         private val restrictedPackages = setOf(
             "com.google.android.packageinstaller",
             "com.android.packageinstaller",
             "com.miui.packageinstaller",
             "com.samsung.android.packageinstaller",
-            "com.android.settings"
+            "com.android.settings",
+            "com.android.vending",
+            "com.google.android.permissioncontroller",
+            "com.miui.securitycenter",
+            "com.huawei.systemmanager",
         )
 
         fun updateBlockConfigJson(json: String) {
@@ -75,6 +81,8 @@ class AppBlockerService : AccessibilityService() {
                     AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
             notificationTimeout = 100
+            // Needed for findAccessibilityNodeInfosByViewId (reference: xblockit BlockAccessibility)
+            flags = flags or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
         }
     }
 
@@ -107,12 +115,35 @@ class AppBlockerService : AccessibilityService() {
         lastTriggered = pkg
         lastTime = now
 
+        val featuresForFlutter = if (hasRule) {
+            featureListForRules(rules, pkg)
+        } else {
+            listOf("restricted_surface")
+        }
+        BlockEventBridge.emitBlockTriggered(
+            packageName = pkg,
+            features = featuresForFlutter,
+            activityClass = event.className?.toString(),
+            eventType = event.eventType,
+        )
+
+        val lockTarget = if (pkg in restrictedPackages) packageName else pkg
         val intent = Intent(this, MainActivity::class.java).apply {
             action = Intent.ACTION_VIEW
-            putExtra("route", "/lock/$pkg")
+            putExtra("route", "/lock/$lockTarget")
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
         startActivity(intent)
+    }
+
+    private fun featureListForRules(rules: JSONObject, pkg: String): List<String> {
+        val arr = rules.optJSONArray(pkg) ?: return emptyList()
+        val out = ArrayList<String>()
+        for (i in 0 until arr.length()) {
+            val s = arr.optString(i, "")
+            if (s.isNotBlank() && s != "__full__") out.add(s)
+        }
+        return out
     }
 
     private fun shouldBlockPackage(
@@ -129,8 +160,18 @@ class AppBlockerService : AccessibilityService() {
         }
         if (feats.contains("__full__")) return true
 
-        if (pkg == YOUTUBE) {
+        if (pkg == FeatureBlockDetector.PKG_YOUTUBE) {
             return shouldBlockYouTube(event, feats)
+        }
+        if (pkg == FeatureBlockDetector.PKG_INSTAGRAM ||
+            pkg == FeatureBlockDetector.PKG_SNAPCHAT
+        ) {
+            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+                val t = SystemClock.uptimeMillis()
+                if (t - lastSocialProbeMs < 550) return false
+                lastSocialProbeMs = t
+            }
+            return FeatureBlockDetector.shouldBlockGenericSocial(this, event, feats, pkg)
         }
 
         return true
@@ -148,21 +189,7 @@ class AppBlockerService : AccessibilityService() {
 
         val onlyShorts = wantShorts && !wantFeed && !wantStories && !wantReels
         if (onlyShorts) {
-            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-                val t = SystemClock.uptimeMillis()
-                if (t - lastYtShortsProbeMs < 700) return false
-                lastYtShortsProbeMs = t
-            }
-            val clsOnly = event.className?.toString()?.lowercase() ?: ""
-            if (clsOnly.contains("shorts") &&
-                (clsOnly.contains("activity") || clsOnly.contains("fragment") || clsOnly.contains("watch"))
-            ) {
-                return true
-            }
-            val rootOnly = rootInActiveWindow ?: return false
-            val hitOnly = findShortsUi(rootOnly, 0)
-            rootOnly.recycle()
-            return hitOnly
+            return shouldBlockYouTubeShortsOnly(event)
         }
 
         if (!wantShorts && !wantFeed && !wantStories && !wantReels) return false
@@ -175,37 +202,123 @@ class AppBlockerService : AccessibilityService() {
 
         var hitShorts = false
         if (wantShorts) {
-            val cls = event.className?.toString()?.lowercase() ?: ""
-            if (cls.contains("shorts") &&
-                (cls.contains("activity") || cls.contains("fragment") || cls.contains("watch"))
-            ) {
-                hitShorts = true
-            }
-            if (!hitShorts) {
-                val rootS = rootInActiveWindow
-                if (rootS != null) {
-                    try {
-                        hitShorts = findShortsUi(rootS, 0)
-                    } finally {
-                        rootS.recycle()
-                    }
-                }
-            }
+            hitShorts = youtubeShortsSurfaceShouldBlock(event)
         }
         if (hitShorts) return true
 
         val root = rootInActiveWindow ?: return false
         try {
+            val nav = readYouTubeBottomNavState(root)
+            if ((wantShorts || wantReels) &&
+                ReferenceBlockHeuristics.youtubeHasReelRecycler(root) &&
+                (nav.shortsSelected || !nav.homeSelected)
+            ) {
+                return true
+            }
             if (wantFeed && findYouTubeFeedSurface(root, 0)) return true
             if ((wantStories || wantReels) && findYouTubeStoriesOrReelsSurface(root, 0)) {
                 return true
             }
-            // YouTube "Reels" toggle maps to the Shorts-style vertical feed.
-            if (wantReels && findShortsUi(root, 0)) return true
+            if (wantReels && findStrictShortsPlayer(root, 0)) return true
+            if (wantStories && FeatureBlockDetector.containsAnyKeyword(
+                    root,
+                    FeatureBlockDetector.keywordsForFeature("stories"),
+                )
+            ) {
+                return true
+            }
         } finally {
             root.recycle()
         }
         return false
+    }
+
+    /**
+     * "Shorts only" must not lock Home / Subscriptions / Watch — only the Shorts tab
+     * or an embedded vertical Shorts / Reel player.
+     */
+    private fun shouldBlockYouTubeShortsOnly(event: AccessibilityEvent): Boolean {
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+            val t = SystemClock.uptimeMillis()
+            if (t - lastYtShortsProbeMs < 700) return false
+            lastYtShortsProbeMs = t
+        }
+
+        val cls = event.className?.toString()?.lowercase() ?: ""
+        if (cls.contains("reel") && (cls.contains("shorts") || cls.contains("watch"))) return true
+        if (cls.contains("shorts") && cls.contains("activity")) return true
+
+        val root = rootInActiveWindow ?: return false
+        try {
+            val nav = readYouTubeBottomNavState(root)
+            // Reference xblockit: reel_recycler — restrict on Home tab to avoid shelf false positives
+            if (ReferenceBlockHeuristics.youtubeHasReelRecycler(root) &&
+                (nav.shortsSelected || !nav.homeSelected)
+            ) {
+                return true
+            }
+            val player = findStrictShortsPlayer(root, 0)
+            if (player) return true
+            if (nav.homeSelected && !nav.shortsSelected) return false
+            if (nav.shortsSelected) return true
+            return false
+        } finally {
+            root.recycle()
+        }
+    }
+
+    private data class YtBottomNav(val homeSelected: Boolean, val shortsSelected: Boolean)
+
+    private fun readYouTubeBottomNavState(root: AccessibilityNodeInfo?): YtBottomNav {
+        if (root == null) return YtBottomNav(false, false)
+        var home = false
+        var shorts = false
+        fun walk(n: AccessibilityNodeInfo?, depth: Int) {
+            if (n == null || depth > 42) return
+            try {
+                if (n.isSelected) {
+                    val cd = n.contentDescription?.toString()?.lowercase()?.trim() ?: ""
+                    val tx = n.text?.toString()?.lowercase()?.trim() ?: ""
+                    if (cd == "home" || tx == "home" || cd.contains("home") && cd.contains("tab")) {
+                        home = true
+                    }
+                    if (cd == "shorts" || cd.startsWith("shorts,") || tx == "shorts" ||
+                        (cd.contains("shorts") && !cd.contains("shortcut"))
+                    ) {
+                        shorts = true
+                    }
+                }
+            } catch (_: Exception) {
+            }
+            for (i in 0 until n.childCount) {
+                walk(n.getChild(i), depth + 1)
+            }
+        }
+        walk(root, 0)
+        return YtBottomNav(home, shorts)
+    }
+
+    /** Shorts rail or reel player — avoids matching Home shelves / random "shorts" text. */
+    private fun youtubeShortsSurfaceShouldBlock(event: AccessibilityEvent): Boolean {
+        val cls = event.className?.toString()?.lowercase() ?: ""
+        if (cls.contains("reel") && (cls.contains("shorts") || cls.contains("watch"))) return true
+        if (cls.contains("shorts") && cls.contains("activity")) return true
+        val root = rootInActiveWindow ?: return false
+        try {
+            val nav = readYouTubeBottomNavState(root)
+            if (ReferenceBlockHeuristics.youtubeHasReelRecycler(root) &&
+                (nav.shortsSelected || !nav.homeSelected)
+            ) {
+                return true
+            }
+            val player = findStrictShortsPlayer(root, 0)
+            if (player) return true
+            if (nav.homeSelected && !nav.shortsSelected) return false
+            if (nav.shortsSelected) return true
+            return false
+        } finally {
+            root.recycle()
+        }
     }
 
     private fun findYouTubeFeedSurface(node: AccessibilityNodeInfo?, depth: Int): Boolean {
@@ -248,36 +361,32 @@ class AppBlockerService : AccessibilityService() {
         return false
     }
 
-    private fun findShortsUi(node: AccessibilityNodeInfo?, depth: Int): Boolean {
-        if (node == null || depth > 40) return false
+    /** Vertical Shorts / Reel watch surfaces only (not shelves, chips, or nav). */
+    private fun findStrictShortsPlayer(node: AccessibilityNodeInfo?, depth: Int): Boolean {
+        if (node == null || depth > 42) return false
         try {
             val id = node.viewIdResourceName?.lowercase() ?: ""
-            // Avoid bottom-nav / home shelf false positives (still in main YouTube).
-            if (id.contains("thumbnail") || id.contains("avatar") || id.contains("shelf") ||
-                id.contains("chip") || id.contains("tab") || id.contains("navigation")
-            ) {
-                // Still recurse; do not match on this node alone.
-            } else if (looksLikeShortsSurface(id)) {
-                return true
-            }
-            val cd = node.contentDescription?.toString()?.lowercase()?.trim() ?: ""
-            if ((cd == "shorts" || cd.startsWith("shorts,")) && depth >= 6) return true
-            val tx = node.text?.toString()?.lowercase()?.trim() ?: ""
-            if (tx == "shorts" && depth >= 6) return true
+            if (looksLikeShortsPlayerId(id)) return true
         } catch (_: Exception) {
         }
         for (i in 0 until node.childCount) {
             val c = node.getChild(i) ?: continue
-            if (findShortsUi(c, depth + 1)) return true
+            if (findStrictShortsPlayer(c, depth + 1)) return true
         }
         return false
     }
 
-    /** True for player / watch surfaces, not home tabs or shelves. */
-    private fun looksLikeShortsSurface(id: String): Boolean {
-        if (!id.contains("shorts")) return false
-        return id.contains("player") || id.contains("watch") || id.contains("reel") ||
-            id.contains("pager") || id.contains("viewer") || id.contains("surface")
+    private fun looksLikeShortsPlayerId(id: String): Boolean {
+        val reelOrShorts = id.contains("shorts") || id.contains("reel")
+        if (!reelOrShorts) return false
+        if (id.contains("shelf") || id.contains("carousel") || id.contains("chip") ||
+            id.contains("thumbnail") || id.contains("navigation") || id.contains("tab_bar") ||
+            id.contains("avatar")
+        ) {
+            return false
+        }
+        return id.contains("player") || id.contains("watch") || id.contains("pager") ||
+            id.contains("viewer") || id.contains("surface") || id.contains("watch_frame")
     }
 
     override fun onInterrupt() {}

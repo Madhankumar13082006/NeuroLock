@@ -21,6 +21,7 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
 
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).apply {
+            BlockEventBridge.attach(this)
             setMethodCallHandler { call, result ->
                 when (call.method) {
                     "openAccessibilitySettings" -> {

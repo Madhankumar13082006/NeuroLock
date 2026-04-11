@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -29,11 +30,16 @@ void main() async {
   //   print('App Check init (non-blocking): $e');
   // }
 
-  // Allow Android accessibility service to navigate into Flutter.
-  PlatformBridge.initNavigation((route) {
-    // Use router from app.dart
-    appRouterGo(route);
-  });
+  // Allow Android accessibility service to navigate into Flutter and report blocks.
+  PlatformBridge.initBridge(
+    onNavigate: appRouterGo,
+    onBlockTriggered: kDebugMode
+        ? (payload) {
+            // Feature-level block fired (native); hook analytics here if needed.
+            debugPrint('NOKKON block: $payload');
+          }
+        : null,
+  );
 
   runApp(const ProviderScope(child: NokkonApp()));
 }
