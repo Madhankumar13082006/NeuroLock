@@ -4,8 +4,13 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.content.Intent
+import android.graphics.PixelFormat
+import android.os.Handler
 import android.os.SystemClock
 import android.provider.Settings
+import android.view.Gravity
+import android.view.View
+import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import org.json.JSONArray
@@ -17,6 +22,8 @@ class AppBlockerService : AccessibilityService() {
         private const val PREFS = "impulse_control"
         private const val KEY_RULES_JSON = "blocked_rules_json"
         private const val KEY_INVITE_ROTATION_PENDING = "invite_rotation_pending"
+        private const val KEY_SETTINGS_LOCKDOWN_UNTIL_MS = "settings_lockdown_until_ms"
+        private const val SETTINGS_LOCKDOWN_MS = 10 * 60 * 1000L
         @Volatile
         private var rulesJson: String = "{}"
 
@@ -57,6 +64,8 @@ class AppBlockerService : AccessibilityService() {
     private val keyUnlockUntil = "unlock_until_ms"
     private val keyPinSet = "pin_set"
 
+    private val overlay by lazy { BlockingOverlay(this) }
+
     override fun onServiceConnected() {
         loadRulesFromPrefs(this)
         serviceInfo = AccessibilityServiceInfo().apply {
@@ -64,7 +73,8 @@ class AppBlockerService : AccessibilityService() {
                 AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
                     AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
-            notificationTimeout = 100
+            // Reduce latency so we can cover Settings/blocked apps quickly.
+            notificationTimeout = 10
             // Needed for findAccessibilityNodeInfosByViewId (reference: xblockit BlockAccessibility)
             flags = flags or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
         }
@@ -79,6 +89,43 @@ class AppBlockerService : AccessibilityService() {
         val inviteRotationPending = prefs.getBoolean(KEY_INVITE_ROTATION_PENDING, false)
         val unlocked = unlockUntil > System.currentTimeMillis()
 
+        val shouldArmAntiUninstall = pinSet || inviteRotationPending
+
+        // Strict Settings lockdown: while active, Settings should never be visible.
+        val settingsLockdownUntil = prefs.getLong(KEY_SETTINGS_LOCKDOWN_UNTIL_MS, 0L)
+        val settingsLockdownActive = settingsLockdownUntil > System.currentTimeMillis()
+        if (settingsLockdownActive && AntiUninstallHeuristics.isSettingsPackage(pkg)) {
+            triggerLock(
+                lockTarget = "com.android.settings",
+                packageName = pkg,
+                featuresForFlutter = listOf("settings_lockdown"),
+                forceHome = true,
+            )
+            return
+        }
+
+        // Settings strict protection (AppLock style):
+        // The moment we detect the user is on NOKKON's surface inside Settings,
+        // we immediately kick them out and lock Settings for 10 minutes.
+        //
+        // This prevents the iterative bypass: close PIN -> tap one button -> close PIN -> tap again.
+        val settingsMentionsSelf = shouldArmAntiUninstall &&
+            !unlocked &&
+            AntiUninstallHeuristics.isSettingsPackage(pkg) &&
+            AntiUninstallHeuristics.shouldRequirePinThrottled(this, event)
+        if (settingsMentionsSelf) {
+            prefs.edit()
+                .putLong(KEY_SETTINGS_LOCKDOWN_UNTIL_MS, System.currentTimeMillis() + SETTINGS_LOCKDOWN_MS)
+                .commit()
+            triggerLock(
+                lockTarget = "com.android.settings",
+                packageName = pkg,
+                featuresForFlutter = listOf("settings_lockdown_trigger"),
+                forceHome = true,
+            )
+            return
+        }
+
         val rules = try {
             JSONObject(rulesJson)
         } catch (_: Exception) {
@@ -86,19 +133,17 @@ class AppBlockerService : AccessibilityService() {
         }
         val hasRule = rules.has(pkg)
         // Anti-uninstall does not require block rules JSON to be non-empty (PIN alone is enough).
-        val needsAntiUninstallPin = (pinSet || inviteRotationPending) &&
+        val needsAntiUninstallPin = shouldArmAntiUninstall &&
             AntiUninstallHeuristics.isSensitiveUninstallSurface(pkg) &&
             AntiUninstallHeuristics.shouldRequirePinThrottled(this, event)
+
+        // Note: legacy keyword-based detection (uninstall/force stop) is no longer needed,
+        // because we now start lockdown as soon as Settings is on NOKKON's surface.
 
         if (unlocked) return
         if (!hasRule && !needsAntiUninstallPin) return
 
         if (hasRule && !shouldBlockPackage(pkg, event, rules)) return
-
-        val now = System.currentTimeMillis()
-        if (pkg == lastTriggered && now - lastTime < 3000) return
-        lastTriggered = pkg
-        lastTime = now
 
         val featuresForFlutter = when {
             hasRule -> featureListForRules(rules, pkg)
@@ -113,12 +158,49 @@ class AppBlockerService : AccessibilityService() {
         )
 
         val lockTarget = if (needsAntiUninstallPin) packageName else pkg
+        triggerLock(
+            lockTarget = lockTarget,
+            packageName = pkg,
+            featuresForFlutter = featuresForFlutter,
+            forceHome = false,
+        )
+    }
+
+    private fun triggerLock(
+        lockTarget: String,
+        packageName: String,
+        featuresForFlutter: List<String>,
+        forceHome: Boolean,
+    ) {
+        val now = System.currentTimeMillis()
+        if (packageName == lastTriggered && now - lastTime < 2500) return
+        lastTriggered = packageName
+        lastTime = now
+
+        // Cover immediately to prevent interaction and minimize any UI flash.
+        overlay.show()
+
+        if (forceHome) {
+            try {
+                performGlobalAction(GLOBAL_ACTION_HOME)
+            } catch (_: Throwable) {
+            }
+        }
+
         val intent = Intent(this, MainActivity::class.java).apply {
             action = Intent.ACTION_VIEW
             putExtra("route", "/lock/$lockTarget")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra("strict_exit_home", true)
+            addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_NO_ANIMATION or
+                    Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS,
+            )
         }
         startActivity(intent)
+
+        overlay.hideDelayed(if (forceHome) 1500 else 800)
     }
 
     private fun featureListForRules(rules: JSONObject, pkg: String): List<String> {
@@ -375,4 +457,56 @@ class AppBlockerService : AccessibilityService() {
     }
 
     override fun onInterrupt() {}
+}
+
+/**
+ * Minimal full-screen accessibility overlay used to prevent UI interaction and reduce
+ * sensitive app flashes while the Flutter lock route is being brought to front.
+ */
+private class BlockingOverlay(private val service: AccessibilityService) {
+    private val wm by lazy { service.getSystemService(Context.WINDOW_SERVICE) as WindowManager }
+    private var view: View? = null
+    private val handler by lazy { Handler(service.mainLooper) }
+
+    fun show() {
+        if (view != null) return
+        val v = View(service).apply {
+            // Fully opaque black "instant cover".
+            setBackgroundColor(0xFF000000.toInt())
+            isClickable = true
+            isFocusable = true
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+        val lp = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_FULLSCREEN or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+        }
+        try {
+            wm.addView(v, lp)
+            view = v
+        } catch (_: Throwable) {
+            view = null
+        }
+    }
+
+    fun hide() {
+        val v = view ?: return
+        view = null
+        try {
+            wm.removeView(v)
+        } catch (_: Throwable) {
+        }
+    }
+
+    fun hideDelayed(ms: Long) {
+        handler.removeCallbacksAndMessages(null)
+        handler.postDelayed({ hide() }, ms)
+    }
 }

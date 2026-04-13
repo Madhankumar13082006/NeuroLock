@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resources>
+    <!-- UI -->
+    <attr name="highlightDrawable" format="reference" />
+    <attr name="dividerColor" format="color" />
+    <!-- Preferences -->
+    <attr name="language" format="string" />
+    <attr name="license" format="reference" />
+    <attr name="url" format="string" />
+</resources>

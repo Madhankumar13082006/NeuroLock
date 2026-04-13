@@ -44,6 +44,11 @@ object AntiUninstallHeuristics {
     fun isSensitiveUninstallSurface(packageName: String): Boolean =
         packageName in UNINSTALL_SENSITIVE_PACKAGES
 
+    fun isSettingsPackage(packageName: String): Boolean =
+        packageName == "com.android.settings" ||
+            packageName == "com.google.android.settings" ||
+            packageName == "com.samsung.android.settings"
+
     /**
      * True if the event or active window tree references NOKKON / this package.
      */
@@ -133,5 +138,60 @@ object AntiUninstallHeuristics {
         val r = shouldRequirePinForCurrentWindow(service, event)
         lastContentTreeResult = r
         return r
+    }
+
+    private val SETTINGS_DANGER_KEYWORDS = listOf(
+        "uninstall",
+        "force stop",
+        "force-stop",
+    )
+
+    /**
+     * True when the current Settings UI appears to be the NOKKON App Info surface
+     * where "Uninstall" / "Force stop" actions are available.
+     */
+    fun shouldStartSettingsLockdown(
+        service: AccessibilityService,
+        event: AccessibilityEvent,
+    ): Boolean {
+        val pkg = event.packageName?.toString() ?: return false
+        if (!isSettingsPackage(pkg)) return false
+
+        // Must be about NOKKON specifically; avoid blocking Settings for other apps.
+        val mentionsSelf = shouldRequirePinThrottled(service, event)
+        if (!mentionsSelf) return false
+
+        val root = service.rootInActiveWindow ?: return false
+        return try {
+            containsAnyText(root, SETTINGS_DANGER_KEYWORDS, 0)
+        } finally {
+            root.recycle()
+        }
+    }
+
+    private fun containsAnyText(
+        node: AccessibilityNodeInfo?,
+        needles: List<String>,
+        depth: Int,
+    ): Boolean {
+        if (node == null || depth > 56) return false
+        try {
+            val t = node.text?.toString()?.lowercase() ?: ""
+            val cd = node.contentDescription?.toString()?.lowercase() ?: ""
+            val id = node.viewIdResourceName?.toString()?.lowercase() ?: ""
+            for (n in needles) {
+                val k = n.lowercase()
+                val idNeedle = k.replace(" ", "_")
+                if (t.contains(k) || cd.contains(k) || (idNeedle.isNotBlank() && id.contains(idNeedle))) {
+                    return true
+                }
+            }
+        } catch (_: Exception) {
+        }
+        val c = node.childCount
+        for (i in 0 until c) {
+            if (containsAnyText(node.getChild(i), needles, depth + 1)) return true
+        }
+        return false
     }
 }

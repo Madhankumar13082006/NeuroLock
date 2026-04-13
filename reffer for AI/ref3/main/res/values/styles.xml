@@ -1,0 +1,185 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Application theme -->
+    <style name="AppTheme" parent="AppTheme.Base" />
+
+    <style name="AppTheme.Base" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- Main app colors -->
+        <item name="colorPrimary">@color/primary_red</item>
+        <item name="colorPrimaryDark">@color/primary_red_dark</item>
+        <item name="colorAccent">@color/accent</item>
+        <item name="android:windowBackground">@color/windowBackground</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="highlightDrawable">@drawable/highlight_light</item>
+        <item name="dividerColor">@color/divider_light</item>
+        <item name="alertDialogTheme">@style/DialogTheme</item>
+        <item name="android:preferenceStyle">@style/Preference</item>
+        <item name="android:checkBoxPreferenceStyle">@style/Preference.SwitchPreference</item>
+        <item name="android:dialogPreferenceStyle">@style/Preference</item>
+        <item name="android:editTextPreferenceStyle">@style/Preference.EditTextDialog</item>
+        <item name="android:preferenceScreenStyle">@style/Preference</item>
+        <item name="android:preferenceCategoryStyle">@style/Preference.Category</item>
+        <item name="windowActionModeOverlay">true</item>
+        <!-- To see copy and paste options over Toolbar -->
+        <item name="android:windowContentOverlay">@null</item>
+
+        <!-- Transitions -->
+        <item name="android:windowContentTransitions">true</item>
+        <item name="android:windowAllowEnterTransitionOverlap">true</item>
+        <item name="android:windowAllowReturnTransitionOverlap">true</item>
+        <item name="android:windowSharedElementEnterTransition">@android:transition/move</item>
+        <item name="android:windowSharedElementExitTransition">@android:transition/move</item>
+    </style>
+
+    <!-- Dark application theme -->
+    <style name="AppTheme.Dark" parent="AppTheme.BaseDark" />
+
+    <style name="AppTheme.BaseDark" parent="Theme.AppCompat.NoActionBar">
+        <!-- Main app colors -->
+        <item name="colorPrimary">@color/primary_red</item>
+        <item name="colorPrimaryDark">@color/primary_red_dark</item>
+        <item name="colorAccent">@color/accent</item>
+        <item name="android:windowBackground">@color/windowBackgroundDark</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:navigationBarColor">@color/windowBackgroundDark</item>
+        <item name="highlightDrawable">@drawable/highlight_dark</item>
+        <item name="dividerColor">@color/divider_dark</item>
+        <item name="alertDialogTheme">@style/DialogTheme.Dark</item>
+        <item name="android:preferenceStyle">@style/Preference</item>
+        <item name="android:checkBoxPreferenceStyle">@style/Preference.SwitchPreference</item>
+        <item name="android:dialogPreferenceStyle">@style/Preference</item>
+        <item name="android:editTextPreferenceStyle">@style/Preference.EditTextDialog</item>
+        <item name="android:preferenceScreenStyle">@style/Preference</item>
+        <item name="android:preferenceCategoryStyle">@style/Preference.Category</item>
+        <item name="windowActionModeOverlay">true</item>
+        <!-- To see copy and paste options over Toolbar -->
+        <item name="android:windowContentOverlay">@null</item>
+
+        <!-- Transitions -->
+        <item name="android:windowContentTransitions">true</item>
+        <item name="android:windowAllowEnterTransitionOverlap">true</item>
+        <item name="android:windowAllowReturnTransitionOverlap">true</item>
+        <item name="android:windowSharedElementEnterTransition">@android:transition/move</item>
+        <item name="android:windowSharedElementExitTransition">@android:transition/move</item>
+    </style>
+
+    <style name="AppTheme.Dark.AMOLED">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:navigationBarColor">@android:color/black</item>
+        <item name="alertDialogTheme">@style/DialogTheme.Dark.AMOLED</item>
+    </style>
+
+    <style name="DialogTheme" parent="Theme.AppCompat.Light.Dialog.Alert">
+        <item name="colorAccent">@color/accent</item>
+    </style>
+
+    <style name="DialogTheme.Dark" parent="Theme.AppCompat.Dialog.Alert">
+        <item name="colorAccent">@color/accent</item>
+    </style>
+
+    <style name="DialogTheme.Dark.AMOLED">
+        <item name="android:background">@android:color/black</item>
+    </style>
+
+    <style name="AppTheme.FirstStart" parent="AppTheme.Base">
+        <item name="android:windowTranslucentStatus">true</item>
+
+        <!-- Transitions -->
+        <item name="android:windowContentTransitions">true</item>
+        <item name="android:windowAllowEnterTransitionOverlap">true</item>
+        <item name="android:windowAllowReturnTransitionOverlap">true</item>
+        <item name="android:windowSharedElementEnterTransition">@android:transition/move</item>
+        <item name="android:windowSharedElementExitTransition">@android:transition/move</item>
+    </style>
+
+    <style name="AppTheme.FirstStart.TitleText">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_margin">16dp</item>
+        <item name="android:fontFamily" tools:ignore="NewApi">sans-serif-light</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textAppearance">@style/TextAppearance.AppCompat.Display1</item>
+        <item name="android:textColor">@android:color/white</item>
+    </style>
+
+    <style name="AppTheme.FirstStart.SubtitleText">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_margin">16dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textAppearance">@style/TextAppearance.AppCompat.Body1</item>
+        <item name="android:textColor">@android:color/white</item>
+    </style>
+
+    <style name="FakeDieDialog" parent="android:Theme.DeviceDefault.Light.Dialog.NoActionBar" />
+
+    <style name="AppTheme.Lockscreen" parent="AppTheme.Dark">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowShowWallpaper">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+
+    <style name="AppTheme.Lockscreen.Full">
+        <item name="android:windowFullscreen">true</item>
+    </style>
+
+    <style name="Widget.TextView.NumPadKey" parent="@android:style/Widget.TextView">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:clickable">true</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textSize">36sp</item>
+        <item name="android:fontFamily" tools:ignore="NewApi">sans-serif-light</item>
+        <item name="android:background">?highlightDrawable</item>
+        <item name="android:textColor">?android:textColorPrimary</item>
+    </style>
+
+    <style name="Preference">
+        <item name="android:layout">@layout/preference</item>
+    </style>
+
+    <style name="Preference.EditTextDialog">
+        <item name="android:positiveButtonText">@android:string/ok</item>
+        <item name="android:negativeButtonText">@android:string/cancel</item>
+        <item name="android:dialogLayout">@layout/edit_text_preference</item>
+    </style>
+
+    <style name="Preference.SwitchPreference">
+        <item name="android:widgetLayout">@layout/preference_widget_switch</item>
+    </style>
+
+    <style name="Preference.Category">
+        <item name="android:layout">@layout/preference_category</item>
+        <item name="android:selectable">false</item>
+        <item name="android:shouldDisableView">false</item>
+    </style>
+
+    <style name="KnockCodeSetupButton">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">0dp</item>
+        <item name="android:background">?highlightDrawable</item>
+    </style>
+
+    <style name="SplitButtonContainer" parent="@android:style/Holo.SegmentedButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:weightSum">2</item>
+        <item name="android:dividerPadding">8dip</item>
+    </style>
+
+    <style name="SplitButtonContainer.Light" parent="@android:style/Holo.Light.SegmentedButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:weightSum">2</item>
+        <item name="android:dividerPadding">8dp</item>
+    </style>
+
+    <style name="SplitButton" parent="@android:style/Widget.Holo.Button.Borderless">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:ellipsize">marquee</item>
+        <item name="android:singleLine">true</item>
+    </style>
+</resources>

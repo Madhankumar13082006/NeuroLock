@@ -7,6 +7,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import android.content.Intent.ACTION_MAIN
+import android.content.Intent.CATEGORY_HOME
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.impulsecontrol/bridge"
@@ -80,6 +82,17 @@ class MainActivity : FlutterActivity() {
                         val v = getSharedPreferences(PREFS, MODE_PRIVATE)
                             .getBoolean(KEY_INVITE_ROTATION_PENDING, false)
                         result.success(v)
+                    }
+                    "goHome" -> {
+                        try {
+                            startActivity(
+                                Intent(ACTION_MAIN)
+                                    .addCategory(CATEGORY_HOME)
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION),
+                            )
+                        } catch (_: Exception) {
+                        }
+                        result.success(null)
                     }
                     else -> result.notImplemented()
                 }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
+import '../../platform/method_channel.dart';
 import '../providers/unlock_provider.dart';
 import '../widgets/invite_link_flow.dart';
 
@@ -23,10 +24,16 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
   bool _delayActive = false;
   Duration _remaining = const Duration(minutes: 20);
   Timer? _timer;
+  bool _exitedByUnlock = false;
 
   @override
   void dispose() {
     _timer?.cancel();
+    if (!_exitedByUnlock) {
+      // Strict exit rule: if user leaves without unlocking, force HOME.
+      // (Avoids returning to Settings / blocked app state via recents/back.)
+      unawaited(PlatformBridge.goHome());
+    }
     super.dispose();
   }
 
@@ -82,6 +89,7 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                 if (mounted) context.go('/home');
               },
             );
+        _exitedByUnlock = true;
         return;
       }
       setState(() => _remaining -= const Duration(seconds: 1));
@@ -97,6 +105,7 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
         await ref.read(unlockProvider.notifier).unlockWithPin(_pinInput);
     if (!mounted) return;
     if (err == null) {
+      _exitedByUnlock = true;
       context.go('/home');
     } else {
       setState(() => _error = err);

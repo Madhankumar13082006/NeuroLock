@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ MaxLock, an Xposed applock module for Android
+  ~ Copyright (C) 2014-2018  Max Rumpf alias Maxr1998
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="de.Maxr1998.xposed.maxlock"
+    android:installLocation="internalOnly">
+
+    <uses-sdk tools:overrideLibrary="xyz.danoz.recyclerviewfastscroller" />
+
+    <!--suppress DeprecatedClassUsageInspection -->
+    <uses-permission-sdk-23 android:name="android.permission.USE_FINGERPRINT" />
+    <!-- For wallpaper on Samsung devices -->
+    <uses-permission
+        android:name="android.permission.WRITE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+    <!-- For backups -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <!-- For IAPs -->
+    <uses-permission android:name="com.android.vending.BILLING" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- For shortcuts -->
+    <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
+
+    <application
+        android:allowBackup="true"
+        android:extractNativeLibs="true"
+        android:fullBackupContent="@xml/backup_scheme"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        tools:ignore="GoogleAppIndexingWarning,UnusedAttribute">
+
+        <!-- Main app -->
+        <activity
+            android:name=".ui.firstStart.FirstStartActivity"
+            android:theme="@style/AppTheme.FirstStart" />
+
+        <activity
+            android:name=".ui.settings_new.SettingsActivity"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="de.robv.android.xposed.category.MODULE_SETTINGS" />
+            </intent-filter>
+        </activity>
+
+        <activity-alias
+            android:name=".Main"
+            android:enabled="true"
+            android:targetActivity=".ui.settings_new.SettingsActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- App shortcuts -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/app_shortcuts" />
+        </activity-alias>
+
+        <activity
+            android:name=".ui.SettingsActivity"
+            android:label="MaxLock OLD"
+            android:taskAffinity=""
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Can be used to open MaxLock from the dialer -->
+        <receiver android:name=".ui.settings_new.HiddenSettingsReceiver">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SECRET_CODE" />
+                <!-- MAXLOCK on T9 dial pad -->
+                <data
+                    android:host="6295625"
+                    android:scheme="android_secret_code" />
+            </intent-filter>
+        </receiver>
+
+        <activity
+            android:name="com.haibison.android.lockpattern.LockPatternActivity"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden"
+            android:screenOrientation="user"
+            android:theme="@style/Alp.42447968.Theme.Dialog.Dark" />
+
+        <activity
+            android:name=".ui.settings.DonateActivity"
+            android:label="@string/app_name" />
+
+        <receiver
+            android:name=".ui.SettingsActivity$UninstallProtectionReceiver"
+            android:description="@string/device_admin_description"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_DEVICE_ADMIN"
+            tools:ignore="ManifestResource">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+                <action android:name="android.app.action.DEVICE_ADMIN_DISABLE_REQUESTED" />
+                <action android:name="android.app.action.DEVICE_ADMIN_DISABLED" />
+            </intent-filter>
+        </receiver>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="de.Maxr1998.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/provider_file_paths" />
+        </provider>
+
+        <!-- Settings provider -->
+        <provider
+            android:name=".preferences.SharedPreferencesProvider"
+            android:authorities="de.Maxr1998.xposed.maxlock.preferences"
+            android:exported="true"
+            tools:ignore="ExportedContentProvider" />
+
+        <!-- Lock screen -->
+        <activity
+            android:name=".ui.LockActivity"
+            android:allowTaskReparenting="true"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/AppTheme.Lockscreen" />
+
+        <!-- MasterSwitch widget -->
+        <receiver android:name=".ui.actions.widget.MasterSwitchWidget">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/masterswitch_widget_info" />
+        </receiver>
+
+        <!-- Shortcuts -->
+        <activity
+            android:name=".ui.actions.ActionConfigActivity"
+            android:exported="true"
+            android:label="@string/activity_label_actions"
+            android:taskAffinity="">
+            <intent-filter>
+                <action android:name="android.intent.action.CREATE_SHORTCUT" />
+                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.actions.ActionActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:label="@string/activity_label_actions"
+            android:taskAffinity=""
+            android:theme="@style/AppTheme.Lockscreen" />
+
+        <!-- Tasker -->
+        <receiver
+            android:name=".ui.actions.tasker.TaskActionReceiver"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.FIRE_SETTING" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".ui.actions.tasker.TaskerActionService"
+            android:exported="true"
+            tools:ignore="ExportedService">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.FIRE_SETTING" />
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name=".ui.actions.tasker.TaskerEventQueryReceiver"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.QUERY_CONDITION" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".ui.actions.tasker.TaskerEventQueryService"
+            android:exported="true"
+            tools:ignore="ExportedService">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.QUERY_CONDITION" />
+            </intent-filter>
+        </service>
+
+        <activity
+            android:name=".ui.actions.tasker.TaskerEventConfigActivity"
+            android:exported="true"
+            android:taskAffinity="" />
+
+        <activity-alias
+            android:name=".ui.actions.tasker.EventUnlockAttempt"
+            android:exported="true"
+            android:label="Unlock Attempt"
+            android:targetActivity=".ui.actions.tasker.TaskerEventConfigActivity">
+            <intent-filter>
+                <action android:name="net.dinglisch.android.tasker.ACTION_EDIT_EVENT" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".ui.actions.tasker.EventUnlockSuccess"
+            android:exported="true"
+            android:label="Unlock Success"
+            android:targetActivity=".ui.actions.tasker.TaskerEventConfigActivity">
+            <intent-filter>
+                <action android:name="net.dinglisch.android.tasker.ACTION_EDIT_EVENT" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".ui.actions.tasker.EventUnlockFailed"
+            android:exported="true"
+            android:label="Unlock Failed"
+            android:targetActivity=".ui.actions.tasker.TaskerEventConfigActivity">
+            <intent-filter>
+                <action android:name="net.dinglisch.android.tasker.ACTION_EDIT_EVENT" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- New app install -->
+        <receiver
+            android:name=".ui.NewAppInstalledBroadcastReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <action android:name="android.intent.action.PACKAGE_FULLY_REMOVED" />
+
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
+
+        <!-- MaxLock no root plugin -->
+        <service
+            android:name=".no_xposed.AppLockService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/applock_service" />
+        </service>
+
+        <!-- Xposed configs -->
+        <meta-data
+            android:name="xposedmodule"
+            android:value="true" />
+        <meta-data
+            android:name="xposeddescription"
+            android:value="Applocker for the Xposed Framework" />
+        <meta-data
+            android:name="xposedminversion"
+            android:value="72" />
+    </application>
+</manifest>

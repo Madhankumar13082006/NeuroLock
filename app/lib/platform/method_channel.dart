@@ -88,4 +88,7 @@ class PlatformBridge {
       return false;
     }
   }
+
+  /// Force the user out to the Android launcher (strict exit rule).
+  static Future<void> goHome() => _ch.invokeMethod('goHome');
 }
