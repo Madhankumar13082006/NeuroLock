@@ -23,7 +23,7 @@ class AppBlockerService : AccessibilityService() {
         private const val KEY_RULES_JSON = "blocked_rules_json"
         private const val KEY_INVITE_ROTATION_PENDING = "invite_rotation_pending"
         private const val KEY_SETTINGS_LOCKDOWN_UNTIL_MS = "settings_lockdown_until_ms"
-        private const val SETTINGS_LOCKDOWN_MS = 10 * 60 * 1000L
+        private const val SETTINGS_LOCKDOWN_MS = 5 * 60 * 1000L
         @Volatile
         private var rulesJson: String = "{}"
 

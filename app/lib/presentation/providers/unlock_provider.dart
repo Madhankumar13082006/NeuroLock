@@ -60,6 +60,8 @@ class UnlockNotifier extends StateNotifier<UnlockState> {
       if (doc.isPinSet) {
         await PlatformBridge.setInviteRotationPending(false);
       }
+      // Cache the trusted PIN hash locally so PIN unlock works offline.
+      await _svc.cacheTrustedPinHashForOffline(doc.currentPinHash);
       await PlatformBridge.setUnlockUntilMs(
         unlocked ? doc.unlockExpiry!.millisecondsSinceEpoch : null,
       );

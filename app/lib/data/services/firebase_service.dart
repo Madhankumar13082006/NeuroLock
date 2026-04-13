@@ -2,7 +2,10 @@ import 'dart:math';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:bcrypt/bcrypt.dart';
 import 'package:http/http.dart' as http;
+import 'package:crypto/crypto.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants.dart';
 
 class PinVerifyResult {
@@ -22,12 +25,14 @@ class LockStateDoc {
   final bool isPinSet;
   final DateTime? unlockExpiry;
   final DateTime? delayTimer;
+  final String? currentPinHash;
 
   const LockStateDoc({
     required this.isLocked,
     required this.isPinSet,
     this.unlockExpiry,
     this.delayTimer,
+    this.currentPinHash,
   });
 
   factory LockStateDoc.fromMap(Map<String, dynamic> data) {
@@ -41,6 +46,7 @@ class LockStateDoc {
       isPinSet: hasBcryptPin,
       unlockExpiry: (data['unlockExpiry'] as Timestamp?)?.toDate(),
       delayTimer: (data['delayTimer'] as Timestamp?)?.toDate(),
+      currentPinHash: hasBcryptPin ? hash : null,
     );
   }
 }
@@ -234,6 +240,13 @@ class FirebaseService {
   }
 
   Future<PinVerifyResult> verifyPin(String pin) async {
+    // Local-first: if a trusted PIN hash is cached, verify offline without network.
+    final localOk = await _verifyOfflinePinBcrypt(pin);
+    if (localOk) {
+      final until = DateTime.now().add(const Duration(hours: 1));
+      return PinVerifyResult(ok: true, unlockUntilMs: until.millisecondsSinceEpoch);
+    }
+
     final idToken = await _auth.currentUser?.getIdToken();
     if (idToken == null) {
       return const PinVerifyResult(
@@ -291,6 +304,9 @@ class FirebaseService {
           'isLocked': true,
           'isPinSet': true,
         }, SetOptions(merge: true));
+        // Cache offline PIN so future unlocks can be local-first.
+        // (Hash-only; no raw PIN stored.)
+        await _cacheOfflinePinLegacySha(pin);
         return PinVerifyResult(ok: true, unlockUntilMs: unlockUntil.toInt());
       }
       return PinVerifyResult(
@@ -299,13 +315,76 @@ class FirebaseService {
         message: ok ? null : (body?['error']?.toString() ?? 'Could not unlock'),
       );
     } catch (e) {
+      // Network failed; try offline (bcrypt hash from Firebase cache, then legacy sha cache).
+      final offlineOk = await _verifyOfflinePinBcrypt(pin) || await _verifyOfflinePinLegacySha(pin);
+      if (offlineOk) {
+        final until = DateTime.now().add(const Duration(hours: 1));
+        return PinVerifyResult(ok: true, unlockUntilMs: until.millisecondsSinceEpoch);
+      }
       return PinVerifyResult(
         ok: false,
         message:
-            'Cannot reach API at $apiRoot - same Wi-Fi as your PC? Fix IP in '
-            'lib/core/constants.dart and use cleartext HTTP only on LAN.\n($e)',
+            'Cannot reach API at $apiRoot. If you previously unlocked once online, '
+            'offline emergency unlock should work. ($e)',
       );
     }
+  }
+
+  // ── OFFLINE PIN CACHE (bcrypt from Firebase + legacy sha fallback) ───────────
+  static const _offlinePrefsKeyBcrypt = 'offline_pin_bcrypt_v1';
+  static const _offlinePrefsKeySalt = 'offline_pin_salt_v1';
+  static const _offlinePrefsKeyHash = 'offline_pin_hash_v1';
+
+  Future<void> cacheTrustedPinHashForOffline(String? bcryptHash) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (bcryptHash == null || bcryptHash.isEmpty) {
+      await prefs.remove(_offlinePrefsKeyBcrypt);
+      return;
+    }
+    await prefs.setString(_offlinePrefsKeyBcrypt, bcryptHash);
+  }
+
+  Future<bool> _verifyOfflinePinBcrypt(String pin) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hash = prefs.getString(_offlinePrefsKeyBcrypt);
+      if (hash == null || hash.isEmpty) return false;
+      return BCrypt.checkpw(pin, hash);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // Legacy offline hash: kept only for devices that already cached it.
+  Future<void> _cacheOfflinePinLegacySha(String pin) async {
+    final prefs = await SharedPreferences.getInstance();
+    final salt = prefs.getString(_offlinePrefsKeySalt) ?? _newSalt();
+    if (prefs.getString(_offlinePrefsKeySalt) == null) {
+      await prefs.setString(_offlinePrefsKeySalt, salt);
+    }
+    final hash = sha256.convert(utf8.encode('$salt:$pin')).toString();
+    await prefs.setString(_offlinePrefsKeyHash, hash);
+  }
+
+  Future<bool> _verifyOfflinePinLegacySha(String pin) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final salt = prefs.getString(_offlinePrefsKeySalt);
+      if (salt == null || salt.isEmpty) return false;
+      final expected = prefs.getString(_offlinePrefsKeyHash);
+      if (expected == null || expected.isEmpty) return false;
+      final actual = sha256.convert(utf8.encode('$salt:$pin')).toString();
+      return actual == expected;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  String _newSalt() {
+    const chars =
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final rng = Random.secure();
+    return List.generate(20, (_) => chars[rng.nextInt(chars.length)]).join();
   }
 
   Future<bool> isUnlocked() async {
