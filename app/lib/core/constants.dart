@@ -1,14 +1,14 @@
 class AppConstants {
-  /// Your PC's LAN IP + Node port (same URL for API + invite links in local dev).
-  /// Example: `http://192.168.1.50:3000` — phone must be on same Wi-Fi.
-  /// Android emulator → host: `http://10.0.2.2:3000`
-  static const String baseUrl = 'http://10.1.182.117:3000';
+  /// Hosted backend URL (same URL for API + invite links).
+  static const String baseUrl = 'https://neurolock.onrender.com/';
 
   /// Safe for `Uri.parse` (strips accidental spaces).
-  static String get baseUrlNormalized =>
-      baseUrl.replaceAll(RegExp(r'\s+'), '').trim();
+  static String get baseUrlNormalized => baseUrl
+      .replaceAll(RegExp(r'\s+'), '')
+      .trim()
+      .replaceFirst(RegExp(r'/+$'), '');
 
-  /// Invite links use the same host as [baseUrl]: `http:// 10.1.182.117:3000/invite/<token>`
+  /// Invite links use the same host as [baseUrl]: `<base>/invite/<token>`
   static String get inviteLinkBase => baseUrlNormalized;
 
   static const String accessTokenKey = 'access_token';
