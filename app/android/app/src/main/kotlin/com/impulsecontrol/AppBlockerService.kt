@@ -26,7 +26,7 @@ class AppBlockerService : AccessibilityService() {
         private const val KEY_RULES_JSON = "blocked_rules_json"
         private const val KEY_INVITE_ROTATION_PENDING = "invite_rotation_pending"
         private const val KEY_SETTINGS_LOCKDOWN_UNTIL_MS = "settings_lockdown_until_ms"
-        private const val SETTINGS_LOCKDOWN_MS = 5 * 60 * 1000L
+        private const val SETTINGS_LOCKDOWN_MS = 10 * 60 * 1000L
         private const val KEY_USAGE_LIMIT_PREFIX = "usage_limit_min_"
         private const val KEY_USAGE_DAY_PREFIX = "usage_day_"
         private const val KEY_USAGE_TODAY_MS_PREFIX = "usage_today_ms_"
@@ -86,6 +86,8 @@ class AppBlockerService : AccessibilityService() {
     private var activeStartMs: Long = 0L
     private var lastUsageTickMs: Long = 0L
     private val featureLastTickMs: MutableMap<String, Long> = mutableMapOf()
+    private var lastSelfSeenElapsedMs: Long = 0L
+    private var lastLauncherBypassLockMs: Long = 0L
 
     override fun onServiceConnected() {
         loadRulesFromPrefs(this)
@@ -103,14 +105,15 @@ class AppBlockerService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         val pkg = event.packageName?.toString() ?: return
+        if (pkg == packageName) {
+            lastSelfSeenElapsedMs = SystemClock.elapsedRealtime()
+        }
 
         val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
         val unlockUntil = prefs.getLong(keyUnlockUntil, 0L)
         val pinSet = prefs.getBoolean(keyPinSet, false)
         val inviteRotationPending = prefs.getBoolean(KEY_INVITE_ROTATION_PENDING, false)
         val unlocked = unlockUntil > System.currentTimeMillis()
-
-        val shouldArmAntiUninstall = pinSet || inviteRotationPending
 
         // Ensure we always have a starting point for usage tracking even if some OEM builds
         // don't deliver a window-state change early enough (e.g. Shorts).
@@ -131,10 +134,19 @@ class AppBlockerService : AccessibilityService() {
             tickUsage(prefs, pkg)
         }
 
+        val rules = try {
+            JSONObject(rulesJson)
+        } catch (_: Exception) {
+            JSONObject()
+        }
+        val hasAnyConfiguredRule = rules.length() > 0
+        val shouldArmAntiUninstall = pinSet || inviteRotationPending || hasAnyConfiguredRule
+        val hasRule = rules.has(pkg)
+
         // Strict Settings lockdown: while active, Settings should never be visible.
         val settingsLockdownUntil = prefs.getLong(KEY_SETTINGS_LOCKDOWN_UNTIL_MS, 0L)
         val settingsLockdownActive = settingsLockdownUntil > System.currentTimeMillis()
-        if (settingsLockdownActive && AntiUninstallHeuristics.isSettingsPackage(pkg)) {
+        if (settingsLockdownActive && AntiUninstallHeuristics.isSettingsLikeSurface(pkg)) {
             triggerLock(
                 lockTarget = "com.android.settings",
                 packageName = pkg,
@@ -151,10 +163,12 @@ class AppBlockerService : AccessibilityService() {
         // This prevents the iterative bypass: close PIN -> tap one button -> close PIN -> tap again.
         //
         // IMPORTANT: This must remain active even during the 1-hour "delay unlock" window.
+        val settingsShouldLockDown = shouldArmAntiUninstall &&
+            AntiUninstallHeuristics.shouldStartSettingsLockdown(this, event)
         val settingsMentionsSelf = shouldArmAntiUninstall &&
-            AntiUninstallHeuristics.isSettingsPackage(pkg) &&
+            AntiUninstallHeuristics.isSettingsLikeSurface(pkg) &&
             AntiUninstallHeuristics.shouldRequirePinThrottled(this, event)
-        if (settingsMentionsSelf) {
+        if (settingsShouldLockDown || settingsMentionsSelf) {
             prefs.edit()
                 .putLong(KEY_SETTINGS_LOCKDOWN_UNTIL_MS, System.currentTimeMillis() + SETTINGS_LOCKDOWN_MS)
                 .commit()
@@ -166,13 +180,6 @@ class AppBlockerService : AccessibilityService() {
             )
             return
         }
-
-        val rules = try {
-            JSONObject(rulesJson)
-        } catch (_: Exception) {
-            JSONObject()
-        }
-        val hasRule = rules.has(pkg)
 
         // Daily usage limit enforcement:
         // If user has ANY blocks enabled for this package and the daily limit is reached,
@@ -190,6 +197,26 @@ class AppBlockerService : AccessibilityService() {
         val needsAntiUninstallPin = shouldArmAntiUninstall &&
             AntiUninstallHeuristics.isSensitiveUninstallSurface(pkg) &&
             AntiUninstallHeuristics.shouldRequirePinThrottled(this, event)
+
+        val launcherBypassDetected = shouldArmAntiUninstall &&
+            LauncherUninstallBypassShield.shouldForceLock(
+                service = this,
+                event = event,
+                foregroundPackage = pkg,
+                lastSelfSeenElapsedMs = lastSelfSeenElapsedMs,
+            )
+        if (launcherBypassDetected) {
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastLauncherBypassLockMs < 8000L) return
+            lastLauncherBypassLockMs = now
+            triggerLock(
+                lockTarget = packageName,
+                packageName = pkg,
+                featuresForFlutter = listOf("anti_uninstall_launcher_bypass"),
+                forceHome = true,
+            )
+            return
+        }
 
         // Note: legacy keyword-based detection (uninstall/force stop) is no longer needed,
         // because we now start lockdown as soon as Settings is on NOKKON's surface.

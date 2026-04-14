@@ -49,6 +49,25 @@ object AntiUninstallHeuristics {
             packageName == "com.google.android.settings" ||
             packageName == "com.samsung.android.settings"
 
+    /**
+     * OEMs often split App Info / Force Stop / Uninstall UI across security or
+     * permission apps instead of plain Settings. Treat these as Settings-like
+     * for strict lockdown once NOKKON's management surface is detected.
+     */
+    fun isSettingsLikeSurface(packageName: String): Boolean =
+        isSettingsPackage(packageName) ||
+            packageName == "com.google.android.permissioncontroller" ||
+            packageName == "com.android.permissioncontroller" ||
+            packageName == "com.vivo.permissionmanager" ||
+            packageName == "com.iqoo.secure" ||
+            packageName == "com.miui.securitycenter" ||
+            packageName == "com.huawei.systemmanager" ||
+            packageName.contains("settings") ||
+            packageName.contains("securitycenter") ||
+            packageName.contains("permissioncontroller") ||
+            packageName.contains("permissionmanager") ||
+            packageName.contains("systemmanager")
+
     fun isPackageInstallerSurface(packageName: String): Boolean =
         packageName == "com.google.android.packageinstaller" ||
             packageName == "com.android.packageinstaller" ||
@@ -163,7 +182,7 @@ object AntiUninstallHeuristics {
         event: AccessibilityEvent,
     ): Boolean {
         val pkg = event.packageName?.toString() ?: return false
-        if (!isSettingsPackage(pkg)) return false
+        if (!isSettingsLikeSurface(pkg)) return false
 
         // Must be about NOKKON specifically; avoid blocking Settings for other apps.
         val mentionsSelf = shouldRequirePinThrottled(service, event)
