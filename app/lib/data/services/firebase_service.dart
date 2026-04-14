@@ -102,12 +102,7 @@ class FirebaseService {
     String featureKey,
     int minutes,
   ) async {
-    await _db
-        .collection('users')
-        .doc(uid)
-        .collection('blocks')
-        .doc(pkg)
-        .set(
+    await _db.collection('users').doc(uid).collection('blocks').doc(pkg).set(
       {'${featureKey}_limit_minutes': minutes},
       SetOptions(merge: true),
     );
@@ -198,7 +193,7 @@ class FirebaseService {
     if (idToken == null) {
       return const PinVerifyResult(
         ok: false,
-        message: 'Not signed in. Open NOKKON and log in again.',
+        message: 'Not signed in. Open NeuroLock and log in again.',
       );
     }
     final apiRoot = AppConstants.baseUrlNormalized;
@@ -269,14 +264,15 @@ class FirebaseService {
     final localOk = await _verifyOfflinePinBcrypt(pin);
     if (localOk) {
       final until = DateTime.now().add(const Duration(hours: 1));
-      return PinVerifyResult(ok: true, unlockUntilMs: until.millisecondsSinceEpoch);
+      return PinVerifyResult(
+          ok: true, unlockUntilMs: until.millisecondsSinceEpoch);
     }
 
     final idToken = await _auth.currentUser?.getIdToken();
     if (idToken == null) {
       return const PinVerifyResult(
         ok: false,
-        message: 'Not signed in. Open NOKKON and log in again.',
+        message: 'Not signed in. Open NeuroLock and log in again.',
       );
     }
     final apiRoot = AppConstants.baseUrlNormalized;
@@ -341,10 +337,12 @@ class FirebaseService {
       );
     } catch (e) {
       // Network failed; try offline (bcrypt hash from Firebase cache, then legacy sha cache).
-      final offlineOk = await _verifyOfflinePinBcrypt(pin) || await _verifyOfflinePinLegacySha(pin);
+      final offlineOk = await _verifyOfflinePinBcrypt(pin) ||
+          await _verifyOfflinePinLegacySha(pin);
       if (offlineOk) {
         final until = DateTime.now().add(const Duration(hours: 1));
-        return PinVerifyResult(ok: true, unlockUntilMs: until.millisecondsSinceEpoch);
+        return PinVerifyResult(
+            ok: true, unlockUntilMs: until.millisecondsSinceEpoch);
       }
       return PinVerifyResult(
         ok: false,

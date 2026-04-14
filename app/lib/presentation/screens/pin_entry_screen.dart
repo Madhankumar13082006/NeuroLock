@@ -35,7 +35,16 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
       child: Padding(
         padding: const EdgeInsets.all(28),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.lock_rounded, size: 36, color: AppTheme.primary),
+          Container(
+            height: 54,
+            width: 54,
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.lock_rounded,
+                size: 30, color: AppTheme.primary),
+          ),
           const SizedBox(height: 12),
           Text(widget.title,
               textAlign: TextAlign.center,
@@ -86,7 +95,11 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
                           ? AppTheme.danger.withValues(alpha: 0.1)
                           : AppTheme.card,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppTheme.cardBorder),
+                      border: Border.all(
+                        color: k == '⌫'
+                            ? AppTheme.danger.withValues(alpha: 0.35)
+                            : AppTheme.cardBorder,
+                      ),
                     ),
                     child: Text(k,
                         style: TextStyle(

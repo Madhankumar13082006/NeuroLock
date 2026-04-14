@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme.dart';
+import '../widgets/brand_logo.dart';
 
 class LinkGeneratedScreen extends StatelessWidget {
   final String link;
@@ -44,9 +45,9 @@ class LinkGeneratedScreen extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF1A0F2E),
-              Color(0xFF121212),
-              Color(0xFF0D1528),
+              Color(0xFF0E1320),
+              Color(0xFF141D31),
+              Color(0xFF0C1424),
             ],
           ),
         ),
@@ -59,18 +60,10 @@ class LinkGeneratedScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.shield_rounded,
-                          color: AppTheme.primary, size: 28),
-                    ),
+                    const BrandLogo(size: 44, radius: 12),
                     const SizedBox(width: 10),
                     const Text(
-                      'NOKKON',
+                      'NeuroLock',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 22,
@@ -110,8 +103,7 @@ class LinkGeneratedScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Send this link by any app. Whoever opens it first can set the '
-                  '4-digit PIN once—after that, the link stops working. Prefer someone you trust.',
+                  'Send this link to someone you trust. The first person who opens it can set your 4-digit PIN once, then the link closes automatically.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.65),
@@ -181,50 +173,48 @@ class LinkGeneratedScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 28),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 14,
+                  runSpacing: 14,
                   children: [
                     _ShareOrb(
                       color: const Color(0xFF25D366),
                       icon: Icons.chat_rounded,
                       label: 'WhatsApp',
                       onTap: () => _openExternal(
-                          'https://wa.me/?text=${Uri.encodeComponent('Set my NOKKON PIN: $link')}'),
+                          'https://wa.me/?text=${Uri.encodeComponent('Set my NeuroLock PIN: $link')}'),
                     ),
                     _ShareOrb(
                       color: const Color(0xFF229ED9),
                       icon: Icons.send_rounded,
                       label: 'Telegram',
-                      onTap: () => _shareText('NOKKON PIN setup'),
+                      onTap: () => _shareText('NeuroLock PIN setup'),
                     ),
                     _ShareOrb(
                       color: const Color(0xFFEA4335),
                       icon: Icons.mail_outline_rounded,
                       label: 'Email',
-                      onTap: () => _shareText('NOKKON PIN setup'),
+                      onTap: () => _shareText('NeuroLock PIN setup'),
                     ),
                     _ShareOrb(
                       color: AppTheme.primary,
                       icon: Icons.ios_share_rounded,
                       label: 'More',
-                      onTap: () => _shareText('NOKKON PIN setup'),
+                      onTap: () => _shareText('NeuroLock PIN setup'),
                     ),
                   ],
                 ),
                 const SizedBox(height: 36),
-                OutlinedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: BorderSide(
-                      color: AppTheme.primary.withValues(alpha: 0.7),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 52),
                     ),
-                    minimumSize: const Size(double.infinity, 52),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(26),
-                    ),
+                    child: const Text('Done'),
                   ),
-                  child: const Text('Done'),
                 ),
               ],
             ),

@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 
-/// StayFree-inspired dark theme: near-black surfaces, soft purple accents.
+/// Production dark theme: calm blue-purple palette with clear contrast.
 class AppTheme {
-  static const primary = Color(0xFFBB86FC);
-  static const primaryDark = Color(0xFF9A67EA);
-  static const bg = Color(0xFF121212);
-  static const surface = Color(0xFF1E1E1E);
-  static const card = Color(0xFF1E1E1E);
-  static const cardBorder = Color(0xFF2C2C2C);
-  static const textPrimary = Color(0xFFE8E8E8);
-  static const textSecondary = Color(0xFF9E9E9E);
+  static const primary = Color(0xFF7C8CFF);
+  static const primaryDark = Color(0xFF596DFF);
+  static const bg = Color(0xFF0E1320);
+  static const surface = Color(0xFF161D2E);
+  static const card = Color(0xFF1A2236);
+  static const cardBorder = Color(0xFF273249);
+  static const textPrimary = Color(0xFFF2F5FF);
+  static const textSecondary = Color(0xFFAAB4CB);
   static const success = Color(0xFF4CAF50);
   static const danger = Color(0xFFCF6679);
-  static const amber = Color(0xFFFFC107);
-  static const navActiveBg = Color(0x33BB86FC);
+  static const amber = Color(0xFFFFC857);
+  static const navActiveBg = Color(0x337C8CFF);
 
   static ThemeData get dark => ThemeData(
         useMaterial3: true,
@@ -23,7 +23,7 @@ class AppTheme {
           primary: primary,
           secondary: primaryDark,
           surface: surface,
-          onPrimary: Color(0xFF1A1A1A),
+          onPrimary: Color(0xFF0B1020),
           onSurface: textPrimary,
         ),
         appBarTheme: const AppBarTheme(
@@ -71,7 +71,7 @@ class AppTheme {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xFF2A2A2A),
+          fillColor: const Color(0xFF212B42),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: cardBorder),

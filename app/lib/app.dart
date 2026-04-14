@@ -68,13 +68,13 @@ void appRouterGo(String route) {
   _router.go(route);
 }
 
-class NokkonApp extends StatelessWidget {
-  const NokkonApp({super.key});
+class NeuroLockApp extends StatelessWidget {
+  const NeuroLockApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'NOKKON',
+      title: 'NeuroLock',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
       routerConfig: _router,

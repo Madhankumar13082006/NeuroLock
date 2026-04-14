@@ -9,6 +9,7 @@ import '../providers/unlock_provider.dart';
 import '../widgets/app_usage_chart.dart';
 import '../widgets/feature_toggle_row.dart';
 import '../widgets/invite_link_flow.dart';
+import '../widgets/brand_logo.dart';
 import '../widgets/shell_app_bar_actions.dart';
 import '../../platform/method_channel.dart';
 import 'pin_entry_screen.dart';
@@ -68,8 +69,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           style: TextStyle(color: AppTheme.textPrimary),
         ),
         content: Text(
-          'NOKKON needs Accessibility to detect blocked screens and show the lock screen.\n\n'
-          'Tap Enable now → turn on NOKKON → come back.',
+          'NeuroLock needs Accessibility to detect blocked screens and show the lock screen.\n\n'
+          'Tap Enable now -> turn on NeuroLock -> come back.',
           style: TextStyle(
             color: AppTheme.textSecondary.withValues(alpha: 0.95),
             height: 1.45,
@@ -150,7 +151,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SizedBox(height: 10),
             Text(
               'To show the lock screen when you open YouTube, Instagram, or '
-              'Snapchat, turn on NOKKON under Accessibility in Android settings. '
+              'Snapchat, turn on NeuroLock under Accessibility in Android settings. '
               'You can change this anytime.',
               style: TextStyle(
                 color: AppTheme.textSecondary.withValues(alpha: 0.95),
@@ -200,7 +201,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _generateGlobalInviteLink(BuildContext context) async {
-    // One PIN for whole NOKKON: packageName is ignored by invite flow now.
+    // One PIN for whole NeuroLock: packageName is ignored by invite flow now.
     await InviteLinkFlow.generateInviteLinkWithOptionalPin(
       context,
       ref,
@@ -246,17 +247,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.shield_rounded,
-                  size: 20, color: AppTheme.primary),
-            ),
+            const BrandLogo(size: 32, radius: 8),
             const SizedBox(width: 10),
-            const Text('NOKKON'),
+            const Text('NeuroLock'),
           ],
         ),
         actions: [
@@ -272,6 +265,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0x337C8CFF), Color(0x334CA4FF)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border:
+                  Border.all(color: AppTheme.primary.withValues(alpha: 0.28)),
+            ),
+            child: const Text(
+              'Stay focused today. Set blocks you need and keep distractions out.',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 13,
+                height: 1.35,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: TextField(
@@ -302,8 +316,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
-                  borderSide: const BorderSide(
-                      color: AppTheme.primary, width: 1.5),
+                  borderSide:
+                      const BorderSide(color: AppTheme.primary, width: 1.5),
                 ),
               ),
             ),
@@ -313,8 +327,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: AppTheme.primary.withValues(alpha: 0.07),
                   borderRadius: BorderRadius.circular(12),
@@ -331,8 +345,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       child: Text(
                         'Toggle a block below, then share the invite link with a trusted person to set your PIN.',
                         style: TextStyle(
-                          color: AppTheme.textSecondary
-                              .withValues(alpha: 0.9),
+                          color: AppTheme.textSecondary.withValues(alpha: 0.9),
                           fontSize: 12,
                           height: 1.4,
                         ),
@@ -348,27 +361,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: SizedBox(
               width: double.infinity,
               child: lock.isPinSet
-                  ? Row(
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => _generateGlobalInviteLink(context),
-                            icon: const Icon(Icons.link_rounded, size: 20),
-                            label: const Text('New invite link'),
-                          ),
+                        OutlinedButton.icon(
+                          onPressed: () => _generateGlobalInviteLink(context),
+                          icon: const Icon(Icons.link_rounded, size: 20),
+                          label: const Text('New invite link'),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => _removeGlobalPin(context),
-                            icon: const Icon(Icons.delete_forever_rounded,
-                                size: 20),
-                            label: const Text('Remove PIN'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppTheme.danger,
-                              side: BorderSide(
-                                color: AppTheme.danger.withValues(alpha: 0.7),
-                              ),
+                        const SizedBox(height: 10),
+                        OutlinedButton.icon(
+                          onPressed: () => _removeGlobalPin(context),
+                          icon: const Icon(Icons.delete_forever_rounded,
+                              size: 20),
+                          label: const Text('Remove PIN'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.danger,
+                            side: BorderSide(
+                              color: AppTheme.danger.withValues(alpha: 0.7),
                             ),
                           ),
                         ),

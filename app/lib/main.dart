@@ -36,10 +36,10 @@ void main() async {
     onBlockTriggered: kDebugMode
         ? (payload) {
             // Feature-level block fired (native); hook analytics here if needed.
-            debugPrint('NOKKON block: $payload');
+            debugPrint('NeuroLock block: $payload');
           }
         : null,
   );
 
-  runApp(const ProviderScope(child: NokkonApp()));
+  runApp(const ProviderScope(child: NeuroLockApp()));
 }

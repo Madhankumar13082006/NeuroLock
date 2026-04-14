@@ -13,7 +13,7 @@ import android.view.accessibility.AccessibilityNodeInfo
  */
 object LauncherUninstallBypassShield {
     private const val SELF_PACKAGE = "com.impulsecontrol"
-    private const val SELF_LABEL = "nokkon"
+    private val SELF_LABEL_MARKERS = listOf("neurolock", "neuro lock", "nokkon")
     private const val RECENT_SELF_WINDOW_MS = 12_000L
 
     private val OEM_MANUFACTURERS = setOf(
@@ -85,7 +85,7 @@ object LauncherUninstallBypassShield {
         val root = service.rootInActiveWindow ?: return false
         return try {
             treeContainsAny(root, UNINSTALL_KEYWORDS, 0) &&
-                (treeContainsText(root, SELF_LABEL, 0) || treeContainsText(root, SELF_PACKAGE, 0)) &&
+                (treeContainsAnySelfLabel(root, 0) || treeContainsText(root, SELF_PACKAGE, 0)) &&
                 (onInstaller || treeContainsAny(root, CONFIRMATION_KEYWORDS, 0))
         } finally {
             root.recycle()
@@ -114,11 +114,11 @@ object LauncherUninstallBypassShield {
             if (texts != null) {
                 for (i in 0 until texts.size) {
                     val s = texts[i]?.toString()?.lowercase() ?: continue
-                    if (s.contains(SELF_LABEL) || s.contains(SELF_PACKAGE)) return true
+                    if (SELF_LABEL_MARKERS.any { s.contains(it) } || s.contains(SELF_PACKAGE)) return true
                 }
             }
             val cd = event.contentDescription?.toString()?.lowercase() ?: ""
-            if (cd.contains(SELF_LABEL) || cd.contains(SELF_PACKAGE)) return true
+            if (SELF_LABEL_MARKERS.any { cd.contains(it) } || cd.contains(SELF_PACKAGE)) return true
         } catch (_: Exception) {
         }
         return false
@@ -171,6 +171,23 @@ object LauncherUninstallBypassShield {
         }
         for (i in 0 until node.childCount) {
             if (treeContainsText(node.getChild(i), needle, depth + 1)) return true
+        }
+        return false
+    }
+
+    private fun treeContainsAnySelfLabel(node: AccessibilityNodeInfo?, depth: Int): Boolean {
+        if (node == null || depth > 56) return false
+        try {
+            val tx = node.text?.toString()?.lowercase() ?: ""
+            val cd = node.contentDescription?.toString()?.lowercase() ?: ""
+            val id = node.viewIdResourceName?.lowercase() ?: ""
+            if (SELF_LABEL_MARKERS.any { tx.contains(it) || cd.contains(it) || id.contains(it.replace(" ", "")) }) {
+                return true
+            }
+        } catch (_: Exception) {
+        }
+        for (i in 0 until node.childCount) {
+            if (treeContainsAnySelfLabel(node.getChild(i), depth + 1)) return true
         }
         return false
     }

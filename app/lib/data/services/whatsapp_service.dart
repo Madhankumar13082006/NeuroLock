@@ -8,7 +8,7 @@ class WhatsAppService {
     required String approvalLink,
   }) async {
     final message = Uri.encodeComponent(
-      '🔔 *Nokkon — Unlock Request*\n\n'
+      '🔔 *NeuroLock - Unlock Request*\n\n'
       '*$userName* is requesting to open *$appName*.\n\n'
       'Tap the link below to approve or deny:\n'
       '$approvalLink\n\n'

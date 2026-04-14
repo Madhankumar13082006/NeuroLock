@@ -19,6 +19,8 @@ object AntiUninstallHeuristics {
     private const val SELF_PACKAGE = "com.impulsecontrol"
 
     private val SELF_LABEL_MARKERS = listOf(
+        "neurolock",
+        "neuro lock",
         "nokkon",
         "impulsecontrol",
     )
@@ -122,7 +124,9 @@ object AntiUninstallHeuristics {
         if (node == null || depth > 56) return false
         try {
             val id = node.viewIdResourceName?.lowercase() ?: ""
-            if (id.contains("impulsecontrol") || id.contains("nokkon")) return true
+            if (id.contains("impulsecontrol") || id.contains("nokkon") || id.contains("neurolock")) {
+                return true
+            }
             node.text?.toString()?.let { if (blobMentionsSelf(it)) return true }
             node.contentDescription?.toString()?.let { if (blobMentionsSelf(it)) return true }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

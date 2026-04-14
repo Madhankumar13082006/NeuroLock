@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../platform/method_channel.dart';
 import '../providers/unlock_provider.dart';
 import '../widgets/invite_link_flow.dart';
+import '../widgets/brand_logo.dart';
 
 class LockOverlayScreen extends ConsumerStatefulWidget {
   final String packageName;
@@ -39,7 +40,7 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
 
   String get _appLabel {
     const map = {
-      'com.impulsecontrol': 'NOKKON',
+      'com.impulsecontrol': 'NeuroLock',
       'com.google.android.youtube': 'YouTube',
       'com.instagram.android': 'Instagram',
       'com.snapchat.android': 'Snapchat',
@@ -63,8 +64,8 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
       final item = list[(DateTime.now().millisecondsSinceEpoch) % list.length];
       if (item is Map) {
         return {
-          'quote': item['quote'] as String? ??
-              'Take a breath. You are in control.',
+          'quote':
+              item['quote'] as String? ?? 'Take a breath. You are in control.',
           'author': item['author'] as String? ?? '',
         };
       }
@@ -85,10 +86,10 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
       if (_remaining.inSeconds <= 1) {
         t.cancel();
         await ref.read(unlockProvider.notifier).grantDelayedAccess(
-              onUnlocked: () {
-                if (mounted) context.go('/home');
-              },
-            );
+          onUnlocked: () {
+            if (mounted) context.go('/home');
+          },
+        );
         _exitedByUnlock = true;
         return;
       }
@@ -132,8 +133,8 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
             SafeArea(
               child: Center(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   child: Container(
                     constraints: const BoxConstraints(maxWidth: 400),
                     padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
@@ -156,13 +157,10 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                         // ── Header ──────────────────────────────────────
                         Row(
                           children: [
-                            Icon(Icons.shield_rounded,
-                                color:
-                                    AppTheme.primary.withValues(alpha: 0.95),
-                                size: 24),
+                            const BrandLogo(size: 24, radius: 6),
                             const SizedBox(width: 8),
                             const Text(
-                              'NOKKON',
+                              'NeuroLock',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w700,
@@ -177,8 +175,7 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 4),
                                 minimumSize: Size.zero,
-                                tapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
                               child: Text(
                                 'Close',
@@ -201,8 +198,7 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                             color: AppTheme.danger.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(
-                                color:
-                                    AppTheme.danger.withValues(alpha: 0.25)),
+                                color: AppTheme.danger.withValues(alpha: 0.25)),
                           ),
                           child: Column(
                             children: [
@@ -243,8 +239,7 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                                 color: Colors.white.withValues(alpha: 0.04),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color:
-                                      Colors.white.withValues(alpha: 0.1),
+                                  color: Colors.white.withValues(alpha: 0.1),
                                 ),
                               ),
                               child: Column(
@@ -316,12 +311,14 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: BorderSide(
-                                    color: Colors.white.withValues(alpha: 0.15)),
+                                    color:
+                                        Colors.white.withValues(alpha: 0.15)),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: BorderSide(
-                                    color: Colors.white.withValues(alpha: 0.15)),
+                                    color:
+                                        Colors.white.withValues(alpha: 0.15)),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -344,8 +341,8 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                             width: double.infinity,
                             child: ElevatedButton.icon(
                               onPressed: _unlockWithPin,
-                              icon: const Icon(Icons.lock_open_rounded,
-                                  size: 20),
+                              icon:
+                                  const Icon(Icons.lock_open_rounded, size: 20),
                               label: const Text('Unlock with PIN'),
                             ),
                           ),
@@ -356,11 +353,11 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                             children: [
                               Expanded(
                                   child: Divider(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.12))),
+                                      color: Colors.white
+                                          .withValues(alpha: 0.12))),
                               Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
                                 child: Text(
                                   'or',
                                   style: TextStyle(
@@ -371,8 +368,8 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                               ),
                               Expanded(
                                   child: Divider(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.12))),
+                                      color: Colors.white
+                                          .withValues(alpha: 0.12))),
                             ],
                           ),
                           const SizedBox(height: 16),
@@ -386,8 +383,7 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                               color: AppTheme.amber.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                  color:
-                                      AppTheme.amber.withValues(alpha: 0.3)),
+                                  color: AppTheme.amber.withValues(alpha: 0.3)),
                             ),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -401,8 +397,8 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                                   child: Text(
                                     'No PIN set yet. Generate an invite link and send it to a trusted contact so they can set your PIN.',
                                     style: TextStyle(
-                                      color: AppTheme.amber
-                                          .withValues(alpha: 0.9),
+                                      color:
+                                          AppTheme.amber.withValues(alpha: 0.9),
                                       fontSize: 12,
                                       height: 1.4,
                                     ),
@@ -415,8 +411,8 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
-                              onPressed: () =>
-                                  InviteLinkFlow.generateInviteLinkWithOptionalPin(
+                              onPressed: () => InviteLinkFlow
+                                  .generateInviteLinkWithOptionalPin(
                                 context,
                                 ref,
                                 packageName: widget.packageName,
@@ -459,9 +455,8 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                                 ? _startDelay
                                 : null,
                             icon: const Icon(Icons.schedule_rounded, size: 20),
-                            label: Text(_delayActive
-                                ? 'Waiting…'
-                                : 'Wait 20 minutes'),
+                            label: Text(
+                                _delayActive ? 'Waiting…' : 'Wait 20 minutes'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.white,
                               side: BorderSide(
@@ -487,16 +482,16 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                           const SizedBox(height: 16),
                           Center(
                             child: TextButton.icon(
-                              onPressed: () =>
-                                  InviteLinkFlow.generateInviteLinkWithOptionalPin(
+                              onPressed: () => InviteLinkFlow
+                                  .generateInviteLinkWithOptionalPin(
                                 context,
                                 ref,
                                 packageName: widget.packageName,
                               ),
                               icon: Icon(Icons.link_rounded,
                                   size: 16,
-                                  color: AppTheme.primary
-                                      .withValues(alpha: 0.7)),
+                                  color:
+                                      AppTheme.primary.withValues(alpha: 0.7)),
                               label: Text(
                                 'Generate new invite link',
                                 style: TextStyle(

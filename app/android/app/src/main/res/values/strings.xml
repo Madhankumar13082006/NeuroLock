@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Nokkon</string>
+    <string name="app_name">NeuroLock</string>
     <string name="accessibility_service_description">App blocker for Impulse Control - blocks access to addictive apps</string>
 </resources>

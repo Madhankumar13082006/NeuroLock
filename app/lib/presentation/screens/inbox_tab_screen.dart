@@ -43,10 +43,7 @@ class InboxTabScreen extends ConsumerWidget {
                     const SizedBox(width: 12),
                     Text(
                       'How invite links work',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleSmall
-                          ?.copyWith(
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             color: AppTheme.textPrimary,
                             fontWeight: FontWeight.w600,
                           ),
@@ -57,7 +54,7 @@ class InboxTabScreen extends ConsumerWidget {
                 const _Step(
                   number: '1',
                   text:
-                      'Turn on a block in the Block tab — NOKKON creates a one-time link.',
+                      'Turn on a block in the Block tab - NeuroLock creates a one-time link.',
                 ),
                 const SizedBox(height: 10),
                 const _Step(
