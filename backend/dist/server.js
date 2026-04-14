@@ -21,7 +21,7 @@ app.use((err, req, res, _next) => {
     logger.error(err);
     res.status(500).json({ error: 'Internal server error' });
 });
-require("./jobs/queue"); // boots the fallback + expiry workers
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => logger.info(`Server running on port ${PORT}`));
+// Bind all interfaces so phones on the same Wi‑Fi can open http://<PC_LAN_IP>:PORT/invite/…
+app.listen(Number(PORT), '0.0.0.0', () => logger.info({ port: PORT }, 'Server listening (use LAN IP for invite links from devices)'));
 exports.default = app;

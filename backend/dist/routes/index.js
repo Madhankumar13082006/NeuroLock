@@ -13,6 +13,7 @@ const apps_controller_1 = require("../controllers/apps.controller");
 const user_controller_1 = require("../controllers/user.controller");
 const auth_middleware_1 = require("../middleware/auth.middleware");
 const trustedPin_controller_1 = require("../controllers/trustedPin.controller");
+const invitePage_controller_1 = require("../controllers/invitePage.controller");
 const router = (0, express_1.Router)();
 const authLimiter = (0, express_rate_limit_1.default)({ windowMs: 15 * 60 * 1000, max: 20 });
 const unlockLimiter = (0, express_rate_limit_1.default)({ windowMs: 60 * 60 * 1000, max: 10 });
@@ -43,4 +44,6 @@ router.post('/approve/:token', approval_controller_1.submitApproval);
 router.get('/trusted/setup/:token', trustedPin_controller_1.getTrustedSetup);
 router.post('/trusted/setup/:token', trustedPin_controller_1.postTrustedSetup);
 router.post('/trusted/verify-pin', trustedPin_controller_1.postVerifyTrustedPin);
+// Browser PIN page (local LAN): http://<PC_IP>:3000/invite/<token>
+router.get('/invite/:token', invitePage_controller_1.getInvitePinPage);
 exports.default = router;

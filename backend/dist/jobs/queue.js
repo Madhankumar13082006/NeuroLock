@@ -9,8 +9,11 @@ exports.unlockQueue = unlockQueue;
 let fallbackWorker = null;
 exports.fallbackWorker = fallbackWorker;
 // Initialize queue only if Redis is available
-try {
-    if (redis_1.redis.status === 'ready' || redis_1.redis.status === 'connecting') {
+// Only initialize BullMQ queue/worker when a real Redis connection is available.
+// Our redis config exports a stub with `status === 'disabled'` when REDIS_URL
+// is not configured to avoid noisy connection errors during local dev.
+if (redis_1.redis && redis_1.redis.status !== 'disabled') {
+    try {
         exports.unlockQueue = unlockQueue = new bullmq_1.Queue('unlock', { connection: redis_1.redis });
         // Fallback job: auto-unlock after 20 min if no approval
         exports.fallbackWorker = fallbackWorker = new bullmq_1.Worker('unlock', async (job) => {
@@ -35,7 +38,10 @@ try {
             }
         }, { connection: redis_1.redis });
     }
+    catch (err) {
+        console.warn('Redis not available, queue workers disabled:', err.message);
+    }
 }
-catch (err) {
-    console.warn('Redis not available, queue workers disabled:', err.message);
+else {
+    console.info('Redis disabled: queue workers not started (set REDIS_URL to enable)');
 }
