@@ -35,12 +35,16 @@ object FeatureBlockDetector {
         "following", "for you", "für dich", "pour toi", "suggested", "explore",
         "subscriptions", "abos", "abonnements", "feed", "startseite", "inicio",
     )
+    private val KEYWORDS_MESSAGES = listOf(
+        "messages", "message", "inbox", "dm", "direct", "chat", "chats",
+    )
 
     fun keywordsForFeature(featureKey: String): List<String> = when (featureKey) {
         "shorts" -> KEYWORDS_SHORTS
         "reels" -> KEYWORDS_REELS
         "stories" -> KEYWORDS_STORIES
         "feed" -> KEYWORDS_FEED
+        "messages" -> KEYWORDS_MESSAGES
         else -> emptyList()
     }
 
@@ -117,6 +121,7 @@ object FeatureBlockDetector {
             "stories" -> c.contains("story") && !c.contains("history")
             "feed" -> c.contains("feed") || c.contains("timeline") || c.contains("mainfeed") ||
                 c.contains("browse") || c.contains("home")
+            "messages" -> c.contains("direct") || c.contains("inbox") || c.contains("thread") || c.contains("chat")
             else -> false
         }
     }

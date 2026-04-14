@@ -143,6 +143,43 @@ class UnlockNotifier extends StateNotifier<UnlockState> {
     return null;
   }
 
+  /// Removes the trusted PIN globally (for whole NOKKON) after verifying it.
+  ///
+  /// After removal:
+  /// - blocks remain active (invite-rotation pending keeps native rules armed)
+  /// - lock screen will show "blocked" but won't offer PIN unlock
+  Future<String?> removeTrustedPin(String pin) async {
+    if (!state.isPinSet) return 'No PIN set.';
+
+    final res = await _svc.verifyPinIdentityLocalFirst(pin);
+    if (!res.ok) {
+      return res.message ?? 'Invalid PIN';
+    }
+
+    try {
+      // Keep blocking active even without a trusted PIN.
+      await PlatformBridge.setInviteRotationPending(true);
+
+      await _svc.clearUnlockExpiry();
+      await _svc.clearCurrentPin();
+      await _svc.clearOfflinePinCache();
+
+      await PlatformBridge.setUnlockUntilMs(null);
+      await PlatformBridge.setPinSet(false);
+    } catch (e) {
+      return 'Could not remove PIN: $e';
+    }
+
+    state = UnlockState(
+      isLocked: state.isLocked,
+      isPinSet: false,
+      isUnlocked: false,
+      expiresAt: null,
+      delayTimer: state.delayTimer,
+    );
+    return null;
+  }
+
   Future<void> grantDelayedAccess({required Function() onUnlocked}) async {
     _unlockedViaPin = false; // delay path — do NOT clear PIN on expiry
     final expiry = DateTime.now().add(const Duration(hours: 1));

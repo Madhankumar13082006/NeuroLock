@@ -97,6 +97,22 @@ class FirebaseService {
         .set({featureKey: value}, SetOptions(merge: true));
   }
 
+  Future<void> saveFeatureUsageLimitMinutes(
+    String pkg,
+    String featureKey,
+    int minutes,
+  ) async {
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('blocks')
+        .doc(pkg)
+        .set(
+      {'${featureKey}_limit_minutes': minutes},
+      SetOptions(merge: true),
+    );
+  }
+
   Stream<DocumentSnapshot<Map<String, dynamic>>> watchBlocks(String pkg) {
     return _db
         .collection('users')
@@ -239,6 +255,15 @@ class FirebaseService {
     }
   }
 
+  /// Local-first identity check:
+  /// - if we have a cached trusted PIN hash, verify offline (no internet)
+  /// - otherwise fall back to the trusted API identity check.
+  Future<PinVerifyResult> verifyPinIdentityLocalFirst(String pin) async {
+    final okOffline = await _verifyOfflinePinBcrypt(pin);
+    if (okOffline) return const PinVerifyResult(ok: true);
+    return verifyPinIdentityOnly(pin);
+  }
+
   Future<PinVerifyResult> verifyPin(String pin) async {
     // Local-first: if a trusted PIN hash is cached, verify offline without network.
     final localOk = await _verifyOfflinePinBcrypt(pin);
@@ -342,6 +367,13 @@ class FirebaseService {
       return;
     }
     await prefs.setString(_offlinePrefsKeyBcrypt, bcryptHash);
+  }
+
+  Future<void> clearOfflinePinCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_offlinePrefsKeyBcrypt);
+    await prefs.remove(_offlinePrefsKeySalt);
+    await prefs.remove(_offlinePrefsKeyHash);
   }
 
   Future<bool> _verifyOfflinePinBcrypt(String pin) async {

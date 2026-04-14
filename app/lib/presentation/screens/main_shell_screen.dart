@@ -33,19 +33,19 @@ class _MainShellScreenState extends State<MainShellScreen> {
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.bar_chart_rounded),
+            icon: Icon(Icons.bar_chart_outlined),
             selectedIcon: Icon(Icons.bar_chart_rounded),
             label: 'Usage',
           ),
           NavigationDestination(
-            icon: Icon(Icons.speed_rounded),
-            selectedIcon: Icon(Icons.speed_rounded),
+            icon: Icon(Icons.hourglass_empty_rounded),
+            selectedIcon: Icon(Icons.hourglass_bottom_rounded),
             label: 'Limits',
           ),
           NavigationDestination(
-            icon: Icon(Icons.apps_rounded),
-            selectedIcon: Icon(Icons.apps_rounded),
-            label: 'In-App',
+            icon: Icon(Icons.shield_outlined),
+            selectedIcon: Icon(Icons.shield_rounded),
+            label: 'Block',
           ),
           NavigationDestination(
             icon: Icon(Icons.mail_outline_rounded),

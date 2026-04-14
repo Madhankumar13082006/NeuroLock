@@ -18,6 +18,12 @@ class MainActivity : FlutterActivity() {
     private val KEY_UNLOCK_UNTIL = "unlock_until_ms"
     private val KEY_PIN_SET = "pin_set"
     private val KEY_INVITE_ROTATION_PENDING = "invite_rotation_pending"
+    private fun usageLimitKey(pkg: String) = "usage_limit_min_$pkg"
+    private fun usageDayKey(pkg: String) = "usage_day_$pkg"
+    private fun usageTodayMsKey(pkg: String) = "usage_today_ms_$pkg"
+    private fun featureUsageLimitKey(pkg: String, feature: String) = "feature_usage_limit_min_${pkg}_$feature"
+    private fun featureUsageDayKey(pkg: String, feature: String) = "feature_usage_day_${pkg}_$feature"
+    private fun featureUsageTodayMsKey(pkg: String, feature: String) = "feature_usage_today_ms_${pkg}_$feature"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -93,6 +99,88 @@ class MainActivity : FlutterActivity() {
                         } catch (_: Exception) {
                         }
                         result.success(null)
+                    }
+                    "setUsageLimitMinutes" -> {
+                        val pkg = call.argument<String>("packageName") ?: ""
+                        val min = call.argument<Number>("minutes")?.toInt() ?: 0
+                        if (pkg.isBlank()) {
+                            result.success(null)
+                            return@setMethodCallHandler
+                        }
+                        getSharedPreferences(PREFS, MODE_PRIVATE)
+                            .edit()
+                            .putInt(usageLimitKey(pkg), min.coerceAtLeast(0))
+                            .commit()
+                        result.success(null)
+                    }
+                    "getUsageLimitMinutes" -> {
+                        val pkg = call.argument<String>("packageName") ?: ""
+                        if (pkg.isBlank()) {
+                            result.success(0)
+                            return@setMethodCallHandler
+                        }
+                        val v = getSharedPreferences(PREFS, MODE_PRIVATE)
+                            .getInt(usageLimitKey(pkg), 0)
+                        result.success(v)
+                    }
+                    "getUsageTodayMinutes" -> {
+                        val pkg = call.argument<String>("packageName") ?: ""
+                        if (pkg.isBlank()) {
+                            result.success(0)
+                            return@setMethodCallHandler
+                        }
+                        val p = getSharedPreferences(PREFS, MODE_PRIVATE)
+                        // Ensure day rollover is handled even if service hasn't updated yet.
+                        val today = AppBlockerService.todayKey()
+                        val dayKey = usageDayKey(pkg)
+                        val msKey = usageTodayMsKey(pkg)
+                        if (p.getString(dayKey, "") != today) {
+                            p.edit().putString(dayKey, today).putLong(msKey, 0L).commit()
+                        }
+                        val ms = p.getLong(msKey, 0L)
+                        result.success((ms / 60000L).toInt())
+                    }
+                    "setFeatureUsageLimitMinutes" -> {
+                        val pkg = call.argument<String>("packageName") ?: ""
+                        val feature = call.argument<String>("featureKey") ?: ""
+                        val min = call.argument<Number>("minutes")?.toInt() ?: 0
+                        if (pkg.isBlank() || feature.isBlank()) {
+                            result.success(null)
+                            return@setMethodCallHandler
+                        }
+                        getSharedPreferences(PREFS, MODE_PRIVATE)
+                            .edit()
+                            .putInt(featureUsageLimitKey(pkg, feature), min.coerceAtLeast(0))
+                            .commit()
+                        result.success(null)
+                    }
+                    "getFeatureUsageLimitMinutes" -> {
+                        val pkg = call.argument<String>("packageName") ?: ""
+                        val feature = call.argument<String>("featureKey") ?: ""
+                        if (pkg.isBlank() || feature.isBlank()) {
+                            result.success(0)
+                            return@setMethodCallHandler
+                        }
+                        val v = getSharedPreferences(PREFS, MODE_PRIVATE)
+                            .getInt(featureUsageLimitKey(pkg, feature), 0)
+                        result.success(v)
+                    }
+                    "getFeatureUsageTodayMinutes" -> {
+                        val pkg = call.argument<String>("packageName") ?: ""
+                        val feature = call.argument<String>("featureKey") ?: ""
+                        if (pkg.isBlank() || feature.isBlank()) {
+                            result.success(0)
+                            return@setMethodCallHandler
+                        }
+                        val p = getSharedPreferences(PREFS, MODE_PRIVATE)
+                        val today = AppBlockerService.todayKey()
+                        val dayKey = featureUsageDayKey(pkg, feature)
+                        val msKey = featureUsageTodayMsKey(pkg, feature)
+                        if (p.getString(dayKey, "") != today) {
+                            p.edit().putString(dayKey, today).putLong(msKey, 0L).commit()
+                        }
+                        val ms = p.getLong(msKey, 0L)
+                        result.success((ms / 60000L).toInt())
                     }
                     else -> result.notImplemented()
                 }

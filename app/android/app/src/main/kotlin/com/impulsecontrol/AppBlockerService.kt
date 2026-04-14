@@ -15,6 +15,9 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class AppBlockerService : AccessibilityService() {
 
@@ -24,6 +27,12 @@ class AppBlockerService : AccessibilityService() {
         private const val KEY_INVITE_ROTATION_PENDING = "invite_rotation_pending"
         private const val KEY_SETTINGS_LOCKDOWN_UNTIL_MS = "settings_lockdown_until_ms"
         private const val SETTINGS_LOCKDOWN_MS = 5 * 60 * 1000L
+        private const val KEY_USAGE_LIMIT_PREFIX = "usage_limit_min_"
+        private const val KEY_USAGE_DAY_PREFIX = "usage_day_"
+        private const val KEY_USAGE_TODAY_MS_PREFIX = "usage_today_ms_"
+        private const val KEY_FEATURE_USAGE_LIMIT_PREFIX = "feature_usage_limit_min_"
+        private const val KEY_FEATURE_USAGE_DAY_PREFIX = "feature_usage_day_"
+        private const val KEY_FEATURE_USAGE_TODAY_MS_PREFIX = "feature_usage_today_ms_"
         @Volatile
         private var rulesJson: String = "{}"
 
@@ -31,6 +40,14 @@ class AppBlockerService : AccessibilityService() {
         private var lastTime = 0L
         private var lastYtShortsProbeMs = 0L
         private var lastSocialProbeMs = 0L
+
+        fun todayKey(): String {
+            return try {
+                SimpleDateFormat("yyyyMMdd", Locale.US).format(Date())
+            } catch (_: Exception) {
+                Date().time.toString()
+            }
+        }
 
         fun updateBlockConfigJson(json: String) {
             rulesJson = json.ifBlank { "{}" }
@@ -65,6 +82,10 @@ class AppBlockerService : AccessibilityService() {
     private val keyPinSet = "pin_set"
 
     private val overlay by lazy { BlockingOverlay(this) }
+    private var activePkg: String? = null
+    private var activeStartMs: Long = 0L
+    private var lastUsageTickMs: Long = 0L
+    private val featureLastTickMs: MutableMap<String, Long> = mutableMapOf()
 
     override fun onServiceConnected() {
         loadRulesFromPrefs(this)
@@ -91,6 +112,25 @@ class AppBlockerService : AccessibilityService() {
 
         val shouldArmAntiUninstall = pinSet || inviteRotationPending
 
+        // Ensure we always have a starting point for usage tracking even if some OEM builds
+        // don't deliver a window-state change early enough (e.g. Shorts).
+        if (activePkg == null) {
+            val now = SystemClock.elapsedRealtime()
+            activePkg = pkg
+            activeStartMs = now
+            lastUsageTickMs = now
+        }
+
+        // Track foreground time (daily usage).
+        // Some apps (especially YouTube Shorts) may not trigger window-state transitions
+        // frequently, so we also tick on other accessibility events while the same package
+        // stays in foreground.
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            updateUsageOnWindowChange(prefs, pkg)
+        } else {
+            tickUsage(prefs, pkg)
+        }
+
         // Strict Settings lockdown: while active, Settings should never be visible.
         val settingsLockdownUntil = prefs.getLong(KEY_SETTINGS_LOCKDOWN_UNTIL_MS, 0L)
         val settingsLockdownActive = settingsLockdownUntil > System.currentTimeMillis()
@@ -109,8 +149,9 @@ class AppBlockerService : AccessibilityService() {
         // we immediately kick them out and lock Settings for 10 minutes.
         //
         // This prevents the iterative bypass: close PIN -> tap one button -> close PIN -> tap again.
+        //
+        // IMPORTANT: This must remain active even during the 1-hour "delay unlock" window.
         val settingsMentionsSelf = shouldArmAntiUninstall &&
-            !unlocked &&
             AntiUninstallHeuristics.isSettingsPackage(pkg) &&
             AntiUninstallHeuristics.shouldRequirePinThrottled(this, event)
         if (settingsMentionsSelf) {
@@ -132,6 +173,19 @@ class AppBlockerService : AccessibilityService() {
             JSONObject()
         }
         val hasRule = rules.has(pkg)
+
+        // Daily usage limit enforcement:
+        // If user has ANY blocks enabled for this package and the daily limit is reached,
+        // block the app until day rollover (midnight).
+        if (hasRule && shouldApplyPackageUsageLimit(rules, pkg) && isUsageLimitReached(prefs, pkg)) {
+            triggerLock(
+                lockTarget = pkg,
+                packageName = pkg,
+                featuresForFlutter = listOf("usage_limit"),
+                forceHome = false,
+            )
+            return
+        }
         // Anti-uninstall does not require block rules JSON to be non-empty (PIN alone is enough).
         val needsAntiUninstallPin = shouldArmAntiUninstall &&
             AntiUninstallHeuristics.isSensitiveUninstallSurface(pkg) &&
@@ -140,8 +194,25 @@ class AppBlockerService : AccessibilityService() {
         // Note: legacy keyword-based detection (uninstall/force stop) is no longer needed,
         // because we now start lockdown as soon as Settings is on NOKKON's surface.
 
-        if (unlocked) return
+        // Do NOT allow the general "unlock window" to bypass uninstall protection.
+        // (Delay unlock is for blocked content only, not for disabling/uninstalling NOKKON.)
         if (!hasRule && !needsAntiUninstallPin) return
+
+        // Launcher long-press uninstall path (common on iQOO / Vivo):
+        // Package installer surfaces can allow a very fast "OK" tap.
+        // When uninstall UI is about NOKKON, instantly exit to HOME and show PIN.
+        if (needsAntiUninstallPin && AntiUninstallHeuristics.isPackageInstallerSurface(pkg)) {
+            triggerLock(
+                lockTarget = packageName,
+                packageName = pkg,
+                featuresForFlutter = listOf("anti_uninstall_nokkon"),
+                forceHome = true,
+            )
+            return
+        }
+
+        // After handling anti-uninstall, respect the unlock window for normal blocked features.
+        if (unlocked) return
 
         if (hasRule && !shouldBlockPackage(pkg, event, rules)) return
 
@@ -164,6 +235,89 @@ class AppBlockerService : AccessibilityService() {
             featuresForFlutter = featuresForFlutter,
             forceHome = false,
         )
+    }
+
+    private fun usageLimitKey(pkg: String) = KEY_USAGE_LIMIT_PREFIX + pkg
+    private fun usageDayKey(pkg: String) = KEY_USAGE_DAY_PREFIX + pkg
+    private fun usageTodayMsKey(pkg: String) = KEY_USAGE_TODAY_MS_PREFIX + pkg
+    private fun featureUsageLimitKey(pkg: String, feature: String) =
+        KEY_FEATURE_USAGE_LIMIT_PREFIX + pkg + "_" + feature
+    private fun featureUsageDayKey(pkg: String, feature: String) =
+        KEY_FEATURE_USAGE_DAY_PREFIX + pkg + "_" + feature
+    private fun featureUsageTodayMsKey(pkg: String, feature: String) =
+        KEY_FEATURE_USAGE_TODAY_MS_PREFIX + pkg + "_" + feature
+
+    private fun isUsageLimitReached(prefs: android.content.SharedPreferences, pkg: String): Boolean {
+        val limitMin = prefs.getInt(usageLimitKey(pkg), 0)
+        if (limitMin <= 0) return false
+        val today = todayKey()
+        val dayKey = usageDayKey(pkg)
+        val msKey = usageTodayMsKey(pkg)
+        if (prefs.getString(dayKey, "") != today) {
+            prefs.edit().putString(dayKey, today).putLong(msKey, 0L).commit()
+            return false
+        }
+        val spentMs = prefs.getLong(msKey, 0L)
+        // Add "pending" time that hasn't been flushed yet.
+        val pending = if (activePkg == pkg && lastUsageTickMs > 0L) {
+            (SystemClock.elapsedRealtime() - lastUsageTickMs)
+                .coerceAtLeast(0L)
+                .coerceAtMost(30_000L)
+        } else 0L
+        return (spentMs + pending) >= limitMin * 60_000L
+    }
+
+    private fun updateUsageOnWindowChange(prefs: android.content.SharedPreferences, newPkg: String) {
+        val now = SystemClock.elapsedRealtime()
+        val prev = activePkg
+        if (prev != null && activeStartMs > 0L && prev != newPkg) {
+            val delta = (now - activeStartMs).coerceAtLeast(0L).coerceAtMost(60 * 60 * 1000L)
+            // Write under the day key of the previous package.
+            val today = todayKey()
+            val dayKey = usageDayKey(prev)
+            val msKey = usageTodayMsKey(prev)
+            val edit = prefs.edit()
+            if (prefs.getString(dayKey, "") != today) {
+                edit.putString(dayKey, today).putLong(msKey, 0L)
+            }
+            val cur = prefs.getLong(msKey, 0L)
+            edit.putLong(msKey, cur + delta).commit()
+        }
+        activePkg = newPkg
+        activeStartMs = now
+        lastUsageTickMs = now
+    }
+
+    private fun tickUsage(prefs: android.content.SharedPreferences, pkg: String) {
+        val curPkg = activePkg
+        if (curPkg == null) {
+            val now0 = SystemClock.elapsedRealtime()
+            activePkg = pkg
+            activeStartMs = now0
+            lastUsageTickMs = now0
+            return
+        }
+        if (curPkg != pkg) return
+        val now = SystemClock.elapsedRealtime()
+        val last = lastUsageTickMs
+        if (last <= 0L) {
+            lastUsageTickMs = now
+            return
+        }
+        // Debounce writes; keep UX smooth (avoid constant pref commits).
+        if (now - last < 500L) return
+        val delta = (now - last).coerceAtLeast(0L).coerceAtMost(15_000L)
+        lastUsageTickMs = now
+
+        val today = todayKey()
+        val dayKey = usageDayKey(curPkg)
+        val msKey = usageTodayMsKey(curPkg)
+        val edit = prefs.edit()
+        if (prefs.getString(dayKey, "") != today) {
+            edit.putString(dayKey, today).putLong(msKey, 0L)
+        }
+        val prevMs = prefs.getLong(msKey, 0L)
+        edit.putLong(msKey, prevMs + delta).commit()
     }
 
     private fun triggerLock(
@@ -228,6 +382,10 @@ class AppBlockerService : AccessibilityService() {
         if (feats.contains("__full__")) return true
 
         if (pkg == FeatureBlockDetector.PKG_YOUTUBE) {
+            val ytShortsDetected = feats.contains("shorts") && shouldBlockYouTubeShortsOnly(event)
+            if (ytShortsDetected) {
+                return shouldEnforceFeatureBlock(getSharedPreferences(prefsName, MODE_PRIVATE), pkg, "shorts")
+            }
             return shouldBlockYouTube(event, feats)
         }
         if (pkg == FeatureBlockDetector.PKG_INSTAGRAM ||
@@ -238,28 +396,83 @@ class AppBlockerService : AccessibilityService() {
                 if (t - lastSocialProbeMs < 550) return false
                 lastSocialProbeMs = t
             }
+            if (pkg == FeatureBlockDetector.PKG_INSTAGRAM && feats.contains("reels")) {
+                val reelsOnly = setOf("reels")
+                if (FeatureBlockDetector.shouldBlockGenericSocial(this, event, reelsOnly, pkg)) {
+                    return shouldEnforceFeatureBlock(getSharedPreferences(prefsName, MODE_PRIVATE), pkg, "reels")
+                }
+            }
             return FeatureBlockDetector.shouldBlockGenericSocial(this, event, feats, pkg)
         }
 
         return true
     }
 
-    /** Shorts / feed / stories / reels toggles map to separate UI probes — never block all of YouTube unless [__full__]. */
+    /**
+     * Package-level usage limit should not force full-app lock when we're in
+     * feature-only mode for Shorts/Reels.
+     */
+    private fun shouldApplyPackageUsageLimit(rules: JSONObject, pkg: String): Boolean {
+        val arr = rules.optJSONArray(pkg) ?: return false
+        if (arr.length() == 0) return false
+        val feats = mutableSetOf<String>()
+        for (i in 0 until arr.length()) {
+            feats.add(arr.optString(i, ""))
+        }
+        if (feats.contains("__full__")) return true
+        if (pkg == FeatureBlockDetector.PKG_YOUTUBE && feats == setOf("shorts")) return false
+        if (pkg == FeatureBlockDetector.PKG_INSTAGRAM && feats == setOf("reels")) return false
+        return true
+    }
+
+    /**
+     * For timed feature blocks (YouTube Shorts / Instagram Reels):
+     * - while user still has remaining allowance minutes, do not block
+     * - once allowance is exhausted for today, enforce block.
+     */
+    private fun shouldEnforceFeatureBlock(
+        prefs: android.content.SharedPreferences,
+        pkg: String,
+        feature: String,
+    ): Boolean {
+        val limitMin = prefs.getInt(featureUsageLimitKey(pkg, feature), 0)
+        if (limitMin <= 0) return true
+
+        val today = todayKey()
+        val dayKey = featureUsageDayKey(pkg, feature)
+        val msKey = featureUsageTodayMsKey(pkg, feature)
+        if (prefs.getString(dayKey, "") != today) {
+            prefs.edit().putString(dayKey, today).putLong(msKey, 0L).commit()
+            featureLastTickMs.remove("$pkg|$feature")
+        }
+
+        val key = "$pkg|$feature"
+        val now = SystemClock.elapsedRealtime()
+        val last = featureLastTickMs[key]
+        featureLastTickMs[key] = now
+        val delta = if (last == null) 0L else (now - last).coerceAtLeast(0L).coerceAtMost(15_000L)
+        if (delta > 0L) {
+            val cur = prefs.getLong(msKey, 0L)
+            prefs.edit().putLong(msKey, cur + delta).commit()
+        }
+        val spent = prefs.getLong(msKey, 0L)
+        return spent >= (limitMin * 60_000L)
+    }
+
+    /** Shorts / full videos toggles map to separate UI probes — never block all of YouTube unless [__full__]. */
     private fun shouldBlockYouTube(
         event: AccessibilityEvent,
         feats: Set<String>
     ): Boolean {
         val wantShorts = feats.contains("shorts")
-        val wantFeed = feats.contains("feed")
-        val wantStories = feats.contains("stories")
-        val wantReels = feats.contains("reels")
+        val wantVideos = feats.contains("videos")
 
-        val onlyShorts = wantShorts && !wantFeed && !wantStories && !wantReels
+        val onlyShorts = wantShorts && !wantVideos
         if (onlyShorts) {
             return shouldBlockYouTubeShortsOnly(event)
         }
 
-        if (!wantShorts && !wantFeed && !wantStories && !wantReels) return false
+        if (!wantShorts && !wantVideos) return false
 
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
             val t = SystemClock.uptimeMillis()
@@ -267,35 +480,60 @@ class AppBlockerService : AccessibilityService() {
             lastYtShortsProbeMs = t
         }
 
-        var hitShorts = false
-        if (wantShorts) {
-            hitShorts = youtubeShortsSurfaceShouldBlock(event)
-        }
-        if (hitShorts) return true
+        if (wantShorts && youtubeShortsSurfaceShouldBlock(event)) return true
 
         val root = rootInActiveWindow ?: return false
         try {
-            val nav = readYouTubeBottomNavState(root)
-            if ((wantShorts || wantReels) &&
-                ReferenceBlockHeuristics.youtubeHasReelRecycler(root) &&
-                (nav.shortsSelected || !nav.homeSelected)
-            ) {
-                return true
-            }
-            if (wantFeed && findYouTubeFeedSurface(root, 0)) return true
-            if ((wantStories || wantReels) && findYouTubeStoriesOrReelsSurface(root, 0)) {
-                return true
-            }
-            if (wantReels && findStrictShortsPlayer(root, 0)) return true
-            if (wantStories && FeatureBlockDetector.containsAnyKeyword(
-                    root,
-                    FeatureBlockDetector.keywordsForFeature("stories"),
-                )
-            ) {
-                return true
-            }
+            if (wantVideos && youtubeStandardVideoShouldBlock(event, root)) return true
         } finally {
             root.recycle()
+        }
+        return false
+    }
+
+    private fun youtubeStandardVideoShouldBlock(
+        event: AccessibilityEvent,
+        root: AccessibilityNodeInfo,
+    ): Boolean {
+        // Avoid triggering on Shorts / vertical reel surfaces.
+        val nav = readYouTubeBottomNavState(root)
+        if (ReferenceBlockHeuristics.youtubeHasReelSurface(root) &&
+            (nav.shortsSelected || !nav.homeSelected)
+        ) {
+            return false
+        }
+        if (findStrictShortsPlayer(root, 0)) return false
+
+        val cls = event.className?.toString()?.lowercase() ?: ""
+        // Common YouTube watch activities (varies by version).
+        if (cls.contains("watch") && !cls.contains("shorts") && !cls.contains("reel")) {
+            return true
+        }
+        // Conservative view-id scan for "player/watch" surfaces while excluding shorts/reel ids.
+        return findYouTubeStandardPlayer(root, 0)
+    }
+
+    private fun findYouTubeStandardPlayer(node: AccessibilityNodeInfo?, depth: Int): Boolean {
+        if (node == null || depth > 42) return false
+        try {
+            val id = node.viewIdResourceName?.lowercase() ?: ""
+            if (id.isNotBlank()) {
+                if ((id.contains("player") || id.contains("watch")) &&
+                    !id.contains("shorts") &&
+                    !id.contains("reel") &&
+                    !id.contains("shelf") &&
+                    !id.contains("thumbnail") &&
+                    !id.contains("chip") &&
+                    !id.contains("tab")
+                ) {
+                    return true
+                }
+            }
+        } catch (_: Exception) {
+        }
+        for (i in 0 until node.childCount) {
+            val c = node.getChild(i) ?: continue
+            if (findYouTubeStandardPlayer(c, depth + 1)) return true
         }
         return false
     }
@@ -319,7 +557,7 @@ class AppBlockerService : AccessibilityService() {
         try {
             val nav = readYouTubeBottomNavState(root)
             // Reference xblockit: reel_recycler — restrict on Home tab to avoid shelf false positives
-            if (ReferenceBlockHeuristics.youtubeHasReelRecycler(root) &&
+            if (ReferenceBlockHeuristics.youtubeHasReelSurface(root) &&
                 (nav.shortsSelected || !nav.homeSelected)
             ) {
                 return true
@@ -373,7 +611,7 @@ class AppBlockerService : AccessibilityService() {
         val root = rootInActiveWindow ?: return false
         try {
             val nav = readYouTubeBottomNavState(root)
-            if (ReferenceBlockHeuristics.youtubeHasReelRecycler(root) &&
+            if (ReferenceBlockHeuristics.youtubeHasReelSurface(root) &&
                 (nav.shortsSelected || !nav.homeSelected)
             ) {
                 return true

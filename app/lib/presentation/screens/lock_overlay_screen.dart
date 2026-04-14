@@ -127,78 +127,109 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
           children: [
             BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-              child: Container(color: Colors.black.withValues(alpha: 0.45)),
+              child: Container(color: Colors.black.withValues(alpha: 0.5)),
             ),
             SafeArea(
               child: Center(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 16),
                   child: Container(
                     constraints: const BoxConstraints(maxWidth: 400),
-                    padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+                    padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
                     decoration: BoxDecoration(
-                      color: const Color(0xE6161820),
+                      color: const Color(0xF0161820),
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
                         color: AppTheme.primary.withValues(alpha: 0.35),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primary.withValues(alpha: 0.12),
-                          blurRadius: 32,
-                          spreadRadius: 0,
+                          color: AppTheme.primary.withValues(alpha: 0.14),
+                          blurRadius: 36,
                         ),
                       ],
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // ── Header ──────────────────────────────────────
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: [
-                                Icon(Icons.shield_rounded,
-                                    color: AppTheme.primary.withValues(alpha: 0.95),
-                                    size: 26),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'NOKKON',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.8,
-                                  ),
-                                ),
-                              ],
+                            Icon(Icons.shield_rounded,
+                                color:
+                                    AppTheme.primary.withValues(alpha: 0.95),
+                                size: 24),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'NOKKON',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                letterSpacing: 0.8,
+                              ),
                             ),
-                            IconButton(
+                            const Spacer(),
+                            TextButton(
                               onPressed: () => context.go('/home'),
-                              icon: Icon(Icons.more_vert_rounded,
-                                  color: Colors.white.withValues(alpha: 0.5)),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Close',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.45),
+                                  fontSize: 13,
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '$_appLabel is blocked',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
+                        const SizedBox(height: 16),
+
+                        // ── App blocked title ────────────────────────────
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: AppTheme.danger.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                                color:
+                                    AppTheme.danger.withValues(alpha: 0.25)),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                '$_appLabel is blocked',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                'Screen time today: 6m 34s',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.45),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Screen time today: 6m 34s',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.55),
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 16),
+
+                        // ── Quote ────────────────────────────────────────
                         FutureBuilder<Map<String, String>>(
                           future: _loadQuote(),
                           builder: (_, snap) {
@@ -212,7 +243,8 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                                 color: Colors.white.withValues(alpha: 0.04),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.12),
+                                  color:
+                                      Colors.white.withValues(alpha: 0.1),
                                 ),
                               ),
                               child: Column(
@@ -221,20 +253,22 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                                     '"$q"',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.88),
-                                      fontSize: 14,
-                                      height: 1.45,
+                                      color:
+                                          Colors.white.withValues(alpha: 0.82),
+                                      fontSize: 13,
+                                      height: 1.5,
                                       fontStyle: FontStyle.italic,
                                     ),
                                   ),
                                   if (author.isNotEmpty) ...[
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 6),
                                     Text(
-                                      author,
+                                      '— $author',
                                       style: TextStyle(
-                                        color:
-                                            AppTheme.primary.withValues(alpha: 0.85),
-                                        fontSize: 12,
+                                        color: AppTheme.primary
+                                            .withValues(alpha: 0.8),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                   ],
@@ -244,24 +278,140 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                           },
                         ),
                         const SizedBox(height: 20),
+
+                        // ── PIN unlock (primary action) ──────────────────
+                        if (lock.isPinSet) ...[
+                          Text(
+                            'Enter your PIN to unlock',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.6),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            textAlign: TextAlign.center,
+                            keyboardType: TextInputType.number,
+                            maxLength: 4,
+                            obscureText: true,
+                            onChanged: (v) => setState(() {
+                              _pinInput = v;
+                              _error = null;
+                            }),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              letterSpacing: 12,
+                            ),
+                            decoration: InputDecoration(
+                              counterText: '',
+                              hintText: '••••',
+                              hintStyle: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.22),
+                                  letterSpacing: 8,
+                                  fontSize: 22),
+                              filled: true,
+                              fillColor: Colors.white.withValues(alpha: 0.07),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                    color: Colors.white.withValues(alpha: 0.15)),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                    color: Colors.white.withValues(alpha: 0.15)),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AppTheme.primary, width: 1.5),
+                              ),
+                            ),
+                          ),
+                          if (_error != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              _error!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  color: AppTheme.danger, fontSize: 13),
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _unlockWithPin,
+                              icon: const Icon(Icons.lock_open_rounded,
+                                  size: 20),
+                              label: const Text('Unlock with PIN'),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // ── Divider ─────────────────────────────────────
+                          Row(
+                            children: [
+                              Expanded(
+                                  child: Divider(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.12))),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12),
+                                child: Text(
+                                  'or',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.35),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                  child: Divider(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.12))),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // ── No-PIN warning ───────────────────────────────
                         if (!lock.isPinSet) ...[
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppTheme.amber.withValues(alpha: 0.12),
+                              color: AppTheme.amber.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                  color:
+                                      AppTheme.amber.withValues(alpha: 0.3)),
                             ),
-                            child: Text(
-                              'No PIN set. Generate a new invite link and send it to your trusted contact so they can set a new PIN.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: AppTheme.amber.withValues(alpha: 0.95),
-                                fontSize: 13,
-                                height: 1.35,
-                              ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.warning_amber_rounded,
+                                    color:
+                                        AppTheme.amber.withValues(alpha: 0.85),
+                                    size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'No PIN set yet. Generate an invite link and send it to a trusted contact so they can set your PIN.',
+                                    style: TextStyle(
+                                      color: AppTheme.amber
+                                          .withValues(alpha: 0.9),
+                                      fontSize: 12,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 12),
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
@@ -272,123 +422,92 @@ class _LockOverlayScreenState extends ConsumerState<LockOverlayScreen> {
                                 packageName: widget.packageName,
                               ),
                               icon: const Icon(Icons.link_rounded, size: 20),
-                              label: const Text('Generate new invite link'),
+                              label: const Text('Generate invite link'),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
                         ],
+
+                        // ── Wait 20 minutes (secondary) ──────────────────
+                        if (_delayActive) ...[
+                          Text(
+                            '$m:$s',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: AppTheme.primary.withValues(alpha: 0.95),
+                              fontSize: 36,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Keep this screen open — it will unlock automatically',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.45),
+                              fontSize: 12,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: (lock.isPinSet && !_delayActive)
+                                ? _startDelay
+                                : null,
+                            icon: const Icon(Icons.schedule_rounded, size: 20),
+                            label: Text(_delayActive
+                                ? 'Waiting…'
+                                : 'Wait 20 minutes'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: BorderSide(
+                                  color: Colors.white.withValues(alpha: 0.2)),
+                            ),
+                          ),
+                        ),
+                        if (!_delayActive) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Helps reduce the urge. App opens when the timer ends.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.35),
+                              fontSize: 11,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+
+                        // ── New invite link (when PIN is set) ────────────
                         if (lock.isPinSet) ...[
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
+                          const SizedBox(height: 16),
+                          Center(
+                            child: TextButton.icon(
                               onPressed: () =>
                                   InviteLinkFlow.generateInviteLinkWithOptionalPin(
                                 context,
                                 ref,
                                 packageName: widget.packageName,
                               ),
-                              icon: const Icon(Icons.link_rounded, size: 20),
-                              label: const Text('New invite link (enter PIN)'),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                        if (_delayActive)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Text(
-                              'Keep this screen open: $m:$s',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: AppTheme.primary.withValues(alpha: 0.95),
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
+                              icon: Icon(Icons.link_rounded,
+                                  size: 16,
+                                  color: AppTheme.primary
+                                      .withValues(alpha: 0.7)),
+                              label: Text(
+                                'Generate new invite link',
+                                style: TextStyle(
+                                  color:
+                                      AppTheme.primary.withValues(alpha: 0.7),
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
                           ),
-                        Text(
-                          'Open in 20 minutes or enter PIN to unlock.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.5),
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        TextField(
-                          textAlign: TextAlign.center,
-                          keyboardType: TextInputType.number,
-                          maxLength: 4,
-                          obscureText: true,
-                          onChanged: (v) => _pinInput = v,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            letterSpacing: 10,
-                          ),
-                          decoration: InputDecoration(
-                            counterText: '',
-                            hintText: '••••',
-                            hintStyle:
-                                TextStyle(color: Colors.white.withValues(alpha: 0.25)),
-                            filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.06),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: (lock.isPinSet && !_delayActive)
-                                ? _startDelay
-                                : null,
-                            icon: const Icon(Icons.schedule_rounded, size: 20),
-                            label: const Text('Wait 20 minutes'),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Reduce the urge to unlock.',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.4),
-                            fontSize: 11,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: lock.isPinSet ? _unlockWithPin : null,
-                            icon: const Icon(Icons.lock_open_rounded, size: 20),
-                            label: const Text('Unlock with PIN'),
-                          ),
-                        ),
-                        if (_error != null) ...[
-                          const SizedBox(height: 10),
-                          Text(
-                            _error!,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: AppTheme.danger),
-                          ),
                         ],
-                        const SizedBox(height: 16),
-                        Text(
-                          'This feature is locked via NOKKON blocking.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.35),
-                            fontSize: 11,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () => context.go('/home'),
-                          child: Text(
-                            'Close',
-                            style: TextStyle(
-                              color: AppTheme.primary.withValues(alpha: 0.9),
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),

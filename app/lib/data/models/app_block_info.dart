@@ -41,20 +41,9 @@ const List<SupportedApp> kSupportedApps = [
         icon: Icons.video_library_rounded,
       ),
       FeatureBlock(
-        key: 'reels',
-        label: 'Block Reels',
-        icon: Icons.movie_filter_rounded,
-        earlyAccess: true,
-      ),
-      FeatureBlock(
-        key: 'stories',
-        label: 'Block Stories',
-        icon: Icons.auto_stories_rounded,
-      ),
-      FeatureBlock(
-        key: 'feed',
-        label: 'Block Feed',
-        icon: Icons.home_rounded,
+        key: 'videos',
+        label: 'Block Full Videos',
+        icon: Icons.ondemand_video_rounded,
       ),
     ],
   ),
@@ -63,12 +52,6 @@ const List<SupportedApp> kSupportedApps = [
     displayName: 'Instagram',
     brandColor: Color(0xFFE1306C),
     features: [
-      FeatureBlock(
-        key: 'shorts',
-        label: 'Block Shorts',
-        icon: Icons.video_library_rounded,
-        earlyAccess: true,
-      ),
       FeatureBlock(
         key: 'reels',
         label: 'Block Reels',
@@ -81,9 +64,9 @@ const List<SupportedApp> kSupportedApps = [
         icon: Icons.circle_outlined,
       ),
       FeatureBlock(
-        key: 'feed',
-        label: 'Block Feed',
-        icon: Icons.grid_on_rounded,
+        key: 'messages',
+        label: 'Block Messages',
+        icon: Icons.forum_rounded,
       ),
     ],
   ),
@@ -93,26 +76,14 @@ const List<SupportedApp> kSupportedApps = [
     brandColor: Color(0xFFFFFC00),
     features: [
       FeatureBlock(
-        key: 'shorts',
-        label: 'Block Shorts',
+        key: 'snaps',
+        label: 'Block Spotlight',
         icon: Icons.play_circle_outline_rounded,
-        earlyAccess: true,
-      ),
-      FeatureBlock(
-        key: 'reels',
-        label: 'Block Reels',
-        icon: Icons.view_carousel_rounded,
-        earlyAccess: true,
       ),
       FeatureBlock(
         key: 'stories',
         label: 'Block Stories',
         icon: Icons.bubble_chart_outlined,
-      ),
-      FeatureBlock(
-        key: 'feed',
-        label: 'Block Feed',
-        icon: Icons.explore_rounded,
       ),
     ],
   ),

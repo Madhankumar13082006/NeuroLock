@@ -170,9 +170,15 @@ class InviteLinkFlow {
     WidgetRef ref, {
     required String packageName,
   }) async {
-    final settings = ref.read(blockProvider(packageName));
-    final feats =
-        settings.entries.where((e) => e.value).map((e) => e.key).toList();
+    // Global PIN: generate one link for the whole account.
+    // We attach all active blocks across apps for auditing/visibility only.
+    final active = await BlockNotifier.getAllActiveBlocks();
+    final feats = <String>[];
+    for (final e in active.entries) {
+      for (final f in e.value) {
+        feats.add('${e.key}:$f');
+      }
+    }
 
     if (feats.isEmpty) {
       if (context.mounted) {
@@ -189,7 +195,9 @@ class InviteLinkFlow {
     final svc = ref.read(firebaseServiceProvider);
     try {
       final link = await svc.generateApprovalLink(
-        packageName: packageName,
+        // The server pin is global (lock_state/main.currentPIN). Use a constant
+        // package label for invite metadata.
+        packageName: 'global',
         blockedFeatures: feats,
       );
       if (!context.mounted) return;

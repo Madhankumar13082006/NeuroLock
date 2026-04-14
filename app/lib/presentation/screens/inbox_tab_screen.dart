@@ -15,8 +15,9 @@ class InboxTabScreen extends ConsumerWidget {
         actions: const [ShellAppBarActions()],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.all(20),
         children: [
+          // ── How it works card ────────────────────────────────────
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
@@ -29,54 +30,113 @@ class InboxTabScreen extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.link_rounded, color: AppTheme.primary.withValues(alpha: 0.95)),
-                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.link_rounded,
+                          color: AppTheme.primary.withValues(alpha: 0.95),
+                          size: 20),
+                    ),
+                    const SizedBox(width: 12),
                     Text(
-                      'Invite links',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      'How invite links work',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(
                             color: AppTheme.textPrimary,
                             fontWeight: FontWeight.w600,
                           ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  'When you turn on a block, NOKKON creates a one-time link. '
-                  'Someone you trust opens it in a browser and sets a 4-digit PIN. '
-                  'You will not be able to open that link on this device—ask them to use their phone.',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary.withValues(alpha: 0.95),
-                    height: 1.5,
-                    fontSize: 14,
-                  ),
+                const SizedBox(height: 14),
+                const _Step(
+                  number: '1',
+                  text:
+                      'Turn on a block in the Block tab — NOKKON creates a one-time link.',
+                ),
+                const SizedBox(height: 10),
+                const _Step(
+                  number: '2',
+                  text:
+                      'Share the link with someone you trust. They open it in a browser on their phone and set a 4-digit PIN.',
+                ),
+                const SizedBox(height: 10),
+                const _Step(
+                  number: '3',
+                  text:
+                      'The link becomes invalid after first use. Only your trusted person knows the PIN.',
                 ),
                 const SizedBox(height: 14),
-                Text(
-                  'Tip: use the menu (☰) on the In-App tab if you need to turn on '
-                  'Android accessibility so the lock screen can appear over other apps.',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary.withValues(alpha: 0.75),
-                    height: 1.45,
-                    fontSize: 13,
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.amber.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: AppTheme.amber.withValues(alpha: 0.25)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline_rounded,
+                          size: 15,
+                          color: AppTheme.amber.withValues(alpha: 0.8)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Do not open the link on this device — only your trusted contact should open it.',
+                          style: TextStyle(
+                            color: AppTheme.amber.withValues(alpha: 0.85),
+                            fontSize: 12,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 32),
+
+          // ── Empty state ──────────────────────────────────────────
           Center(
             child: Column(
               children: [
-                Icon(Icons.mark_email_unread_outlined,
-                    size: 56, color: AppTheme.textSecondary.withValues(alpha: 0.35)),
-                const SizedBox(height: 12),
-                Text(
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppTheme.cardBorder),
+                  ),
+                  child: Icon(
+                    Icons.mark_email_unread_outlined,
+                    size: 40,
+                    color: AppTheme.textSecondary.withValues(alpha: 0.35),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text(
                   'No notifications yet',
                   style: TextStyle(
-                    color: AppTheme.textSecondary.withValues(alpha: 0.85),
+                    color: AppTheme.textSecondary,
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Activity from your invite links will appear here',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppTheme.textSecondary.withValues(alpha: 0.6),
+                    fontSize: 13,
                   ),
                 ),
               ],
@@ -84,6 +144,50 @@ class InboxTabScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _Step extends StatelessWidget {
+  final String number;
+  final String text;
+
+  const _Step({required this.number, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 22,
+          height: 22,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppTheme.primary.withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            number,
+            style: TextStyle(
+              color: AppTheme.primary.withValues(alpha: 0.9),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: AppTheme.textSecondary.withValues(alpha: 0.9),
+              fontSize: 13,
+              height: 1.45,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

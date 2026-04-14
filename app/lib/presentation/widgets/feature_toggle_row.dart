@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/app_block_info.dart';
 import '../../core/theme.dart';
 import '../providers/block_provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/unlock_provider.dart';
 import '../screens/pin_entry_screen.dart';
 import 'invite_link_flow.dart';
+import '../../platform/method_channel.dart';
 
-class FeatureToggleRow extends ConsumerWidget {
+class FeatureToggleRow extends ConsumerStatefulWidget {
   final FeatureBlock feature;
   final String packageName;
   final String appDisplayName;
@@ -20,9 +22,146 @@ class FeatureToggleRow extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(blockProvider(packageName));
-    final isOn = settings[feature.key] ?? false;
+  ConsumerState<FeatureToggleRow> createState() => _FeatureToggleRowState();
+}
+
+class _FeatureToggleRowState extends ConsumerState<FeatureToggleRow> {
+  int _limitMin = 0;
+  int _spentMin = 0;
+  bool _loadingUsage = true;
+  int _featureLimitMin = 0;
+  int _featureSpentMin = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshUsage();
+  }
+
+  Future<void> _refreshUsage() async {
+    setState(() => _loadingUsage = true);
+    final limit = await PlatformBridge.getUsageLimitMinutes(widget.packageName);
+    final spent = await PlatformBridge.getUsageTodayMinutes(widget.packageName);
+    var featureLimit = await PlatformBridge.getFeatureUsageLimitMinutes(
+      packageName: widget.packageName,
+      featureKey: widget.feature.key,
+    );
+    if (_isTimedFeature && featureLimit <= 0) {
+      try {
+        final blocks =
+            await ref.read(firebaseServiceProvider).getBlocks(widget.packageName);
+        final remoteLimit = (blocks['${widget.feature.key}_limit_minutes'] as num?)
+                ?.toInt() ??
+            0;
+        if (remoteLimit > 0) {
+          await PlatformBridge.setFeatureUsageLimitMinutes(
+            packageName: widget.packageName,
+            featureKey: widget.feature.key,
+            minutes: remoteLimit,
+          );
+          featureLimit = remoteLimit;
+        }
+      } catch (_) {}
+    }
+    final featureSpent = await PlatformBridge.getFeatureUsageTodayMinutes(
+      packageName: widget.packageName,
+      featureKey: widget.feature.key,
+    );
+    if (!mounted) return;
+    setState(() {
+      _limitMin = limit;
+      _spentMin = spent;
+      _featureLimitMin = featureLimit;
+      _featureSpentMin = featureSpent;
+      _loadingUsage = false;
+    });
+  }
+
+  bool get _isTimedFeature =>
+      (widget.packageName == 'com.google.android.youtube' &&
+          widget.feature.key == 'shorts') ||
+      (widget.packageName == 'com.instagram.android' &&
+          widget.feature.key == 'reels');
+
+  Future<int?> _pickTimedFeatureLimit(BuildContext context) async {
+    final presets = <int>[0, 5, 10, 15, 20, 30, 45, 60, 90, 120];
+    return showDialog<int>(
+      context: context,
+      useRootNavigator: true,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: const Text(
+          'Allow minutes before block',
+          style: TextStyle(color: AppTheme.textPrimary),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (final m in presets)
+                ListTile(
+                  title: Text(
+                    m == 0 ? '0 minutes (Off)' : '$m minutes',
+                    style: const TextStyle(color: AppTheme.textPrimary),
+                  ),
+                  onTap: () => Navigator.pop(ctx, m),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickLimit(BuildContext context) async {
+    final presets = <int>[0, 5, 10, 15, 30, 45, 60, 90, 120];
+    final chosen = await showDialog<int>(
+      context: context,
+      useRootNavigator: true,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: const Text(
+          'Usage Limit Time',
+          style: TextStyle(color: AppTheme.textPrimary),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (final m in presets)
+                ListTile(
+                  title: Text(
+                    m == 0 ? '0m (Off)' : '${m}m',
+                    style: const TextStyle(color: AppTheme.textPrimary),
+                  ),
+                  onTap: () => Navigator.pop(ctx, m),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close',
+                style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+        ],
+      ),
+    );
+    if (chosen == null) return;
+    await PlatformBridge.setUsageLimitMinutes(
+      packageName: widget.packageName,
+      minutes: chosen,
+    );
+    await _refreshUsage();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = ref.watch(blockProvider(widget.packageName));
+    final isOn = settings[widget.feature.key] ?? false;
     final unlock = ref.watch(unlockProvider);
 
     return Padding(
@@ -33,7 +172,7 @@ class FeatureToggleRow extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Icon(
-              feature.icon,
+              widget.feature.icon,
               color: isOn ? AppTheme.primary : AppTheme.textSecondary,
               size: 22,
             ),
@@ -49,7 +188,7 @@ class FeatureToggleRow extends ConsumerWidget {
                   runSpacing: 4,
                   children: [
                     Text(
-                      feature.label,
+                      widget.feature.label,
                       style: TextStyle(
                         color: isOn
                             ? AppTheme.textPrimary
@@ -58,7 +197,7 @@ class FeatureToggleRow extends ConsumerWidget {
                         fontSize: 15,
                       ),
                     ),
-                    if (feature.earlyAccess)
+                    if (widget.feature.earlyAccess)
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 2),
@@ -93,9 +232,9 @@ class FeatureToggleRow extends ConsumerWidget {
                         alignment: PlaceholderAlignment.baseline,
                         baseline: TextBaseline.alphabetic,
                         child: GestureDetector(
-                          onTap: () {},
+                          onTap: () => _pickLimit(context),
                           child: Text(
-                            '0m',
+                            _loadingUsage ? '…' : '${_limitMin}m',
                             style: TextStyle(
                               color: AppTheme.primary.withValues(alpha: 0.95),
                               decoration: TextDecoration.underline,
@@ -111,8 +250,21 @@ class FeatureToggleRow extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
+                if (_isTimedFeature)
+                  Text(
+                    _loadingUsage
+                        ? 'Shorts/Reels allowance: …'
+                        : 'Allow before block: ${_featureLimitMin}m · Used today: ${_featureSpentMin}m',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary.withValues(alpha: 0.75),
+                    ),
+                  ),
+                if (_isTimedFeature) const SizedBox(height: 2),
                 Text(
-                  'Time spent today: 0m',
+                  _loadingUsage
+                      ? 'Time spent today: …'
+                      : 'Time spent today: ${_spentMin}m',
                   style: TextStyle(
                     fontSize: 12,
                     color: AppTheme.textSecondary.withValues(alpha: 0.75),
@@ -134,10 +286,26 @@ class FeatureToggleRow extends ConsumerWidget {
               if (nextValue) {
                 final confirmed = await InviteLinkFlow.showConfirmBlockDialog(
                   context,
-                  featureLabel: feature.label,
-                  appDisplayName: appDisplayName,
+                  featureLabel: widget.feature.label,
+                  appDisplayName: widget.appDisplayName,
                 );
                 if (!confirmed || !context.mounted) return;
+                if (_isTimedFeature) {
+                  final minutes = await _pickTimedFeatureLimit(context);
+                  if (minutes == null || !context.mounted) return;
+                  await PlatformBridge.setFeatureUsageLimitMinutes(
+                    packageName: widget.packageName,
+                    featureKey: widget.feature.key,
+                    minutes: minutes,
+                  );
+                  await ref
+                      .read(firebaseServiceProvider)
+                      .saveFeatureUsageLimitMinutes(
+                        widget.packageName,
+                        widget.feature.key,
+                        minutes,
+                      );
+                }
               }
 
               // ── Turning OFF: require PIN ──────────────────────────────────
@@ -167,8 +335,8 @@ class FeatureToggleRow extends ConsumerWidget {
               // ── Save the block ────────────────────────────────────────────
               try {
                 await ref
-                    .read(blockProvider(packageName).notifier)
-                    .toggle(feature.key);
+                    .read(blockProvider(widget.packageName).notifier)
+                    .toggle(widget.feature.key);
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -200,7 +368,7 @@ class FeatureToggleRow extends ConsumerWidget {
                 await InviteLinkFlow.generateAndShowInviteScreen(
                   context,
                   ref,
-                  packageName: packageName,
+                  packageName: widget.packageName,
                 );
               }
             },

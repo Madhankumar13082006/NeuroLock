@@ -91,4 +91,76 @@ class PlatformBridge {
 
   /// Force the user out to the Android launcher (strict exit rule).
   static Future<void> goHome() => _ch.invokeMethod('goHome');
+
+  static Future<void> setUsageLimitMinutes({
+    required String packageName,
+    required int minutes,
+  }) =>
+      _ch.invokeMethod('setUsageLimitMinutes', {
+        'packageName': packageName,
+        'minutes': minutes,
+      });
+
+  static Future<int> getUsageLimitMinutes(String packageName) async {
+    try {
+      return await _ch.invokeMethod('getUsageLimitMinutes', {
+            'packageName': packageName,
+          }) ??
+          0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  static Future<int> getUsageTodayMinutes(String packageName) async {
+    try {
+      return await _ch.invokeMethod('getUsageTodayMinutes', {
+            'packageName': packageName,
+          }) ??
+          0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  static Future<void> setFeatureUsageLimitMinutes({
+    required String packageName,
+    required String featureKey,
+    required int minutes,
+  }) =>
+      _ch.invokeMethod('setFeatureUsageLimitMinutes', {
+        'packageName': packageName,
+        'featureKey': featureKey,
+        'minutes': minutes,
+      });
+
+  static Future<int> getFeatureUsageLimitMinutes({
+    required String packageName,
+    required String featureKey,
+  }) async {
+    try {
+      return await _ch.invokeMethod('getFeatureUsageLimitMinutes', {
+            'packageName': packageName,
+            'featureKey': featureKey,
+          }) ??
+          0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  static Future<int> getFeatureUsageTodayMinutes({
+    required String packageName,
+    required String featureKey,
+  }) async {
+    try {
+      return await _ch.invokeMethod('getFeatureUsageTodayMinutes', {
+            'packageName': packageName,
+            'featureKey': featureKey,
+          }) ??
+          0;
+    } catch (_) {
+      return 0;
+    }
+  }
 }

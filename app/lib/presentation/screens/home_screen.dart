@@ -11,6 +11,7 @@ import '../widgets/feature_toggle_row.dart';
 import '../widgets/invite_link_flow.dart';
 import '../widgets/shell_app_bar_actions.dart';
 import '../../platform/method_channel.dart';
+import 'pin_entry_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -23,18 +24,79 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final Set<String> _expanded = {};
   final TextEditingController _search = TextEditingController();
   final Map<String, Uint8List> _icons = {};
+  bool _askedAccessibility = false;
 
   @override
   void initState() {
     super.initState();
     _syncNativeBlockedApps();
     _loadInstalledIcons();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ensureAccessibilityEnabled();
+    });
   }
 
   @override
   void dispose() {
     _search.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // When returning from Settings, this widget is typically rebuilt; re-check.
+    _ensureAccessibilityEnabled();
+  }
+
+  Future<void> _ensureAccessibilityEnabled() async {
+    if (!mounted) return;
+    if (_askedAccessibility) return;
+    final enabled = await PlatformBridge.isAccessibilityEnabled();
+    if (!mounted) return;
+    if (enabled) return;
+    _askedAccessibility = true;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: const Text(
+          'Enable Accessibility',
+          style: TextStyle(color: AppTheme.textPrimary),
+        ),
+        content: Text(
+          'NOKKON needs Accessibility to detect blocked screens and show the lock screen.\n\n'
+          'Tap Enable now → turn on NOKKON → come back.',
+          style: TextStyle(
+            color: AppTheme.textSecondary.withValues(alpha: 0.95),
+            height: 1.45,
+            fontSize: 14,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Not now',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await PlatformBridge.openAccessibilitySettings();
+            },
+            child: const Text('Enable now'),
+          ),
+        ],
+      ),
+    );
+
+    // Allow re-prompting if they didn't enable it.
+    _askedAccessibility = false;
   }
 
   Future<void> _syncNativeBlockedApps() async {
@@ -118,27 +180,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       case 'com.google.android.youtube':
         return const {
           'Shorts': 52.0,
-          'Reels': 8.0,
-          'Stories': 6.0,
-          'Feed': 34.0,
+          'Videos': 48.0,
         };
       case 'com.instagram.android':
         return const {
-          'Shorts': 5.0,
           'Reels': 48.0,
           'Stories': 22.0,
-          'Feed': 25.0,
+          'Messages': 30.0,
         };
       case 'com.snapchat.android':
         return const {
-          'Shorts': 18.0,
-          'Reels': 12.0,
+          'Spotlight': 30.0,
           'Stories': 35.0,
-          'Feed': 35.0,
+          'Other': 35.0,
         };
       default:
         return const {'Other': 100.0};
     }
+  }
+
+  Future<void> _generateGlobalInviteLink(BuildContext context) async {
+    // One PIN for whole NOKKON: packageName is ignored by invite flow now.
+    await InviteLinkFlow.generateInviteLinkWithOptionalPin(
+      context,
+      ref,
+      packageName: 'global',
+    );
+  }
+
+  Future<void> _removeGlobalPin(BuildContext context) async {
+    final pin = await showDialog<String>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => const PinEntryDialog(
+        title: 'Enter PIN to remove it',
+      ),
+    );
+    if (pin == null || !context.mounted) return;
+    final err = await ref.read(unlockProvider.notifier).removeTrustedPin(pin);
+    if (!context.mounted) return;
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('PIN removed. Blocks remain active.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -167,80 +259,128 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const Text('NOKKON'),
           ],
         ),
-        actions: const [ShellAppBarActions()],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded, size: 22),
+            color: AppTheme.textSecondary,
+            tooltip: 'Accessibility setup',
+            onPressed: () => _showBlockingHelp(context),
+          ),
+          const ShellAppBarActions(),
+        ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Row(
-              children: [
-                IconButton(
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppTheme.surface,
-                    foregroundColor: AppTheme.textSecondary,
-                  ),
-                  onPressed: () => _showBlockingHelp(context),
-                  tooltip: 'Blocking help',
-                  icon: const Icon(Icons.menu_rounded),
+            child: TextField(
+              controller: _search,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15),
+              decoration: InputDecoration(
+                hintText: 'Search apps',
+                hintStyle: TextStyle(
+                  color: AppTheme.textSecondary.withValues(alpha: 0.65),
+                  fontSize: 15,
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    controller: _search,
-                    onChanged: (_) => setState(() {}),
-                    style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15),
-                    decoration: InputDecoration(
-                      hintText: 'Search in NOKKON',
-                      hintStyle: TextStyle(
-                        color: AppTheme.textSecondary.withValues(alpha: 0.75),
-                        fontSize: 15,
-                      ),
-                      prefixIcon: Icon(
-                        Icons.search_rounded,
-                        color: AppTheme.textSecondary.withValues(alpha: 0.8),
-                        size: 22,
-                      ),
-                      filled: true,
-                      fillColor: AppTheme.surface,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: AppTheme.textSecondary.withValues(alpha: 0.7),
+                  size: 22,
                 ),
-                const SizedBox(width: 10),
-                Container(
-                  decoration: const BoxDecoration(
-                    color: AppTheme.surface,
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    onPressed: () {},
-                    icon: Icon(Icons.notifications_none_rounded,
-                        color: AppTheme.textSecondary.withValues(alpha: 0.9)),
-                  ),
+                filled: true,
+                fillColor: AppTheme.surface,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
                 ),
-              ],
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: const BorderSide(
+                      color: AppTheme.primary, width: 1.5),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 10),
           if (!lock.isPinSet)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                'Blocking runs in the background. Confirm a block, then share a one-time link if you want a trusted PIN.',
-                style: TextStyle(
-                  color: AppTheme.textSecondary.withValues(alpha: 0.85),
-                  fontSize: 12,
-                  height: 1.35,
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: AppTheme.primary.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded,
+                        size: 16,
+                        color: AppTheme.primary.withValues(alpha: 0.8)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Toggle a block below, then share the invite link with a trusted person to set your PIN.',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary
+                              .withValues(alpha: 0.9),
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: SizedBox(
+              width: double.infinity,
+              child: lock.isPinSet
+                  ? Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _generateGlobalInviteLink(context),
+                            icon: const Icon(Icons.link_rounded, size: 20),
+                            label: const Text('New invite link'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _removeGlobalPin(context),
+                            icon: const Icon(Icons.delete_forever_rounded,
+                                size: 20),
+                            label: const Text('Remove PIN'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.danger,
+                              side: BorderSide(
+                                color: AppTheme.danger.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : OutlinedButton.icon(
+                      onPressed: () => _generateGlobalInviteLink(context),
+                      icon: const Icon(Icons.link_rounded, size: 20),
+                      label: const Text('Generate invite link'),
+                    ),
+            ),
+          ),
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -397,45 +537,6 @@ class _AppCard extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 8),
-          ],
-          // Shown whether the card is collapsed OR expanded — users should
-          // never have to hunt for this button after enabling a block.
-          if (nActive > 0) ...[
-            Divider(
-              color: AppTheme.cardBorder.withValues(alpha: 0.5),
-              height: 1,
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-              child: SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () =>
-                      InviteLinkFlow.generateInviteLinkWithOptionalPin(
-                    context,
-                    ref,
-                    packageName: app.packageName,
-                  ),
-                  icon: const Icon(Icons.link_rounded, size: 20),
-                  label: Text(
-                    isPinSet ? 'Generate new invite link' : 'Generate invite link',
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
-              child: Text(
-                isPinSet
-                    ? 'Enter your current PIN first. The old PIN is removed; the next person to open the new link sets a fresh PIN.'
-                    : 'One-time link — first person to open it sets the PIN; link then stops working.',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.textSecondary.withValues(alpha: 0.8),
-                  height: 1.3,
-                ),
-              ),
-            ),
           ],
         ],
       ),

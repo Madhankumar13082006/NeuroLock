@@ -49,6 +49,14 @@ object AntiUninstallHeuristics {
             packageName == "com.google.android.settings" ||
             packageName == "com.samsung.android.settings"
 
+    fun isPackageInstallerSurface(packageName: String): Boolean =
+        packageName == "com.google.android.packageinstaller" ||
+            packageName == "com.android.packageinstaller" ||
+            packageName == "com.miui.packageinstaller" ||
+            packageName == "com.samsung.android.packageinstaller" ||
+            packageName == "com.google.android.permissioncontroller" ||
+            packageName == "com.android.permissioncontroller"
+
     /**
      * True if the event or active window tree references NOKKON / this package.
      */

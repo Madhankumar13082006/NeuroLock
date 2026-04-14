@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../data/models/app_block_info.dart';
 import '../../data/services/firebase_service.dart';
 import '../../platform/method_channel.dart';
 import 'auth_provider.dart';
@@ -19,9 +20,11 @@ class BlockNotifier extends StateNotifier<Map<String, bool>> {
     final prefs = await SharedPreferences.getInstance();
     final data = await _svc.getBlocks(packageName);
     final Map<String, bool> merged = {};
+    final allowed = _allowedFeatureKeysForPackage(packageName);
 
     // Remote (Firestore)
     for (final k in data.keys) {
+      if (!allowed.contains(k)) continue;
       final v = data[k];
       if (v is bool) {
         merged[k] = v;
@@ -38,6 +41,7 @@ class BlockNotifier extends StateNotifier<Map<String, bool>> {
       final parts = key.split(':');
       if (parts.length != 2) continue;
       final featureKey = parts[1];
+      if (!allowed.contains(featureKey)) continue;
       merged.putIfAbsent(featureKey, () => prefs.getBool(key) ?? false);
     }
 
@@ -66,11 +70,23 @@ class BlockNotifier extends StateNotifier<Map<String, bool>> {
       if (prefs.getBool(k) == true) {
         final parts = k.split(':');
         if (parts.length == 2) {
-          result.putIfAbsent(parts[0], () => {}).add(parts[1]);
+          final pkg = parts[0];
+          final feature = parts[1];
+          if (!_allowedFeatureKeysForPackage(pkg).contains(feature)) continue;
+          result.putIfAbsent(pkg, () => {}).add(feature);
         }
       }
     }
     return result;
+  }
+
+  static Set<String> _allowedFeatureKeysForPackage(String pkg) {
+    for (final a in kSupportedApps) {
+      if (a.packageName == pkg) {
+        return a.features.map((f) => f.key).toSet();
+      }
+    }
+    return const <String>{};
   }
 
   /// Pushes per-app feature rules to Android (Shorts-only vs whole app, etc.).

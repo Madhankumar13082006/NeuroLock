@@ -38,7 +38,11 @@ final _router = GoRouter(
     if (user == null && !onAuth) {
       return '/login';
     }
-    if (user != null && onAuth) {
+    // Only auto-redirect from /login → /home, not from /register.
+    // During registration Firebase briefly signs in the user before
+    // we sign them out; redirecting /register → /home at that moment
+    // skips the success snackbar and lands the user in the app unlocked.
+    if (user != null && loc == '/login') {
       return '/home';
     }
     return null;
