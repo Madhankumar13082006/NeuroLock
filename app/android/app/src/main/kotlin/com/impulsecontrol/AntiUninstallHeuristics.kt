@@ -78,6 +78,188 @@ object AntiUninstallHeuristics {
             packageName == "com.google.android.permissioncontroller" ||
             packageName == "com.android.permissioncontroller"
 
+    /** Hints that the UI is an uninstall/remove-app flow (avoid bare "delete"). */
+    private val UNINSTALL_DIALOG_HINTS = listOf(
+        "uninstall",
+        "remove app",
+        "remove this app",
+        "delete this app",
+        "app will be deleted",
+        "desinstalar",
+        "supprimer",
+        "deinstallieren",
+        "eliminar",
+    )
+
+    private val SETTINGS_MANAGEMENT_DANGER = listOf(
+        "uninstall",
+        "force stop",
+        "force-stop",
+        "clear data",
+        "clear storage",
+        "disable",
+    )
+
+    private fun windowAround(s: String, centerIdx: Int, radius: Int): String {
+        val start = (centerIdx - radius).coerceAtLeast(0)
+        val end = (centerIdx + radius).coerceAtMost(s.length)
+        return if (start >= end) "" else s.substring(start, end)
+    }
+
+    private fun appendNodeTextTo(node: AccessibilityNodeInfo?, depth: Int, out: StringBuilder) {
+        if (node == null || depth > 56) return
+        try {
+            node.text?.toString()?.let { if (it.isNotBlank()) out.append(' ').append(it) }
+            node.contentDescription?.toString()?.let { if (it.isNotBlank()) out.append(' ').append(it) }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                node.hintText?.toString()?.let { if (it.isNotBlank()) out.append(' ').append(it) }
+            }
+        } catch (_: Exception) {
+        }
+        val n = node.childCount
+        for (i in 0 until n) {
+            appendNodeTextTo(node.getChild(i), depth + 1, out)
+        }
+    }
+
+    private fun flatHasSelfNearKeywords(flat: String, keywords: List<String>): Boolean {
+        val l = flat.lowercase()
+        val kl = keywords.map { it.lowercase() }
+        if (!kl.any { it.isNotBlank() && l.contains(it) }) return false
+        return selfMarkerNearDangerFlat(l, kl)
+    }
+
+    private fun selfMarkerNearDangerFlat(l: String, dangerNeedles: List<String>): Boolean {
+        val selfNeedles = listOf(
+            SELF_PACKAGE.lowercase(),
+            "neurolock",
+            "neuro lock",
+            "nokkon",
+            "impulsecontrol",
+        )
+        for (d in dangerNeedles) {
+            if (d.isBlank()) continue
+            var start = 0
+            while (start < l.length) {
+                val i = l.indexOf(d, start)
+                if (i < 0) break
+                val center = i + d.length / 2
+                val w = windowAround(l, center, 90)
+                if (blobMentionsSelf(w)) return true
+                start = i + d.length
+            }
+        }
+        for (needle in selfNeedles) {
+            if (needle.length < 4) continue
+            var start = 0
+            while (start < l.length) {
+                val i = l.indexOf(needle, start)
+                if (i < 0) break
+                val center = i + needle.length / 2
+                val w = windowAround(l, center, 90)
+                if (dangerNeedles.any { d -> d.isNotBlank() && w.contains(d) }) return true
+                start = i + needle.length
+            }
+        }
+        return false
+    }
+
+    private fun combinedUninstallTextTargetsSelf(blob: String): Boolean =
+        flatHasSelfNearKeywords(blob, UNINSTALL_DIALOG_HINTS)
+
+    private fun settingsFlatIndicatesSelfManagementDanger(blob: String): Boolean =
+        flatHasSelfNearKeywords(blob, SETTINGS_MANAGEMENT_DANGER)
+
+    fun uninstallDialogTargetsSelfFromRoot(root: AccessibilityNodeInfo): Boolean {
+        val sb = StringBuilder()
+        appendNodeTextTo(root, 0, sb)
+        return combinedUninstallTextTargetsSelf(sb.toString())
+    }
+
+    fun uninstallDialogTargetsSelf(service: AccessibilityService): Boolean {
+        val root = service.rootInActiveWindow ?: return false
+        return try {
+            uninstallDialogTargetsSelfFromRoot(root)
+        } finally {
+            root.recycle()
+        }
+    }
+
+    fun eventLooksLikeUninstallOfSelf(event: AccessibilityEvent): Boolean {
+        val sb = StringBuilder()
+        try {
+            val list = event.text
+            if (list != null) {
+                for (i in 0 until list.size) {
+                    val cs = list[i] ?: continue
+                    if (cs.isNotBlank()) sb.append(' ').append(cs)
+                }
+            }
+            event.contentDescription?.let { if (it.isNotBlank()) sb.append(' ').append(it) }
+        } catch (_: Exception) {
+        }
+        val s = sb.toString()
+        if (s.isBlank()) return false
+        return combinedUninstallTextTargetsSelf(s)
+    }
+
+    @Volatile
+    private var uninstallThrottleMs = 0L
+
+    @Volatile
+    private var uninstallThrottleResult = false
+
+    @Volatile
+    private var uninstallThrottlePkg: String? = null
+
+    fun uninstallDialogTargetsSelfThrottled(
+        service: AccessibilityService,
+        event: AccessibilityEvent,
+    ): Boolean {
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            uninstallThrottleMs = 0L
+            uninstallThrottleResult = false
+            uninstallThrottlePkg = null
+        }
+        if (eventLooksLikeUninstallOfSelf(event)) return true
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+            return uninstallDialogTargetsSelf(service)
+        }
+        val p = event.packageName?.toString() ?: ""
+        if (p != uninstallThrottlePkg) {
+            uninstallThrottlePkg = p
+            uninstallThrottleMs = 0L
+            uninstallThrottleResult = false
+        }
+        val now = SystemClock.uptimeMillis()
+        if (uninstallThrottleMs > 0L && now - uninstallThrottleMs < 480) {
+            return uninstallThrottleResult
+        }
+        uninstallThrottleMs = now
+        val r = uninstallDialogTargetsSelf(service)
+        uninstallThrottleResult = r
+        return r
+    }
+
+    /**
+     * Gate anti-uninstall: Play Store / installers need uninstall+NeuroLock proximity;
+     * Settings-like surfaces need management actions (uninstall, force stop, …) near NeuroLock.
+     */
+    fun shouldArmAntiUninstallForSensitivePackage(
+        service: AccessibilityService,
+        event: AccessibilityEvent,
+        packageName: String,
+    ): Boolean {
+        if (!isSensitiveUninstallSurface(packageName)) return false
+        if (isPackageInstallerSurface(packageName) || packageName == "com.android.vending") {
+            return uninstallDialogTargetsSelfThrottled(service, event)
+        }
+        if (isSettingsLikeSurface(packageName)) {
+            return shouldStartSettingsLockdown(service, event)
+        }
+        return false
+    }
+
     /**
      * True if the event or active window tree references NOKKON / this package.
      */
@@ -149,6 +331,10 @@ object AntiUninstallHeuristics {
     @Volatile
     private var lastContentTreeResult = false
 
+    /** Package name for the last throttled CONTENT_CHANGED sample (null after WINDOW_STATE_CHANGED). */
+    @Volatile
+    private var lastContentThrottlePkg: String? = null
+
     fun shouldRequirePinThrottled(
         service: AccessibilityService,
         event: AccessibilityEvent,
@@ -156,10 +342,20 @@ object AntiUninstallHeuristics {
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             lastContentTreeMs = 0L
             lastContentTreeResult = false
+            lastContentThrottlePkg = null
         }
         if (quickEventFieldsMatch(event)) return true
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
             return shouldRequirePinForCurrentWindow(service, event)
+        }
+        val pkg = event.packageName?.toString() ?: ""
+        // Invalidate throttle when foreground package changes. Otherwise launcher noise can
+        // cache "false" and the next package-installer CONTENT_CHANGED within ~480ms reuses it,
+        // skipping a fresh tree walk — repeat uninstall attempts then slip through.
+        if (pkg != lastContentThrottlePkg) {
+            lastContentThrottlePkg = pkg
+            lastContentTreeMs = 0L
+            lastContentTreeResult = false
         }
         val now = SystemClock.uptimeMillis()
         if (lastContentTreeMs > 0L && now - lastContentTreeMs < 480) {
@@ -171,15 +367,10 @@ object AntiUninstallHeuristics {
         return r
     }
 
-    private val SETTINGS_DANGER_KEYWORDS = listOf(
-        "uninstall",
-        "force stop",
-        "force-stop",
-    )
-
     /**
-     * True when the current Settings UI appears to be the NOKKON App Info surface
-     * where "Uninstall" / "Force stop" actions are available.
+     * True when the current Settings UI shows destructive/management actions for NeuroLock
+     * (uninstall, force stop, clear data, …) — uses proximity so other apps' App Info pages
+     * that merely mention NeuroLock in a list do not trigger.
      */
     fun shouldStartSettingsLockdown(
         service: AccessibilityService,
@@ -187,42 +378,15 @@ object AntiUninstallHeuristics {
     ): Boolean {
         val pkg = event.packageName?.toString() ?: return false
         if (!isSettingsLikeSurface(pkg)) return false
-
-        // Must be about NOKKON specifically; avoid blocking Settings for other apps.
-        val mentionsSelf = shouldRequirePinThrottled(service, event)
-        if (!mentionsSelf) return false
-
         val root = service.rootInActiveWindow ?: return false
         return try {
-            containsAnyText(root, SETTINGS_DANGER_KEYWORDS, 0)
+            val sb = StringBuilder()
+            appendNodeTextTo(root, 0, sb)
+            val flat = sb.toString()
+            settingsFlatIndicatesSelfManagementDanger(flat) ||
+                combinedUninstallTextTargetsSelf(flat)
         } finally {
             root.recycle()
         }
-    }
-
-    private fun containsAnyText(
-        node: AccessibilityNodeInfo?,
-        needles: List<String>,
-        depth: Int,
-    ): Boolean {
-        if (node == null || depth > 56) return false
-        try {
-            val t = node.text?.toString()?.lowercase() ?: ""
-            val cd = node.contentDescription?.toString()?.lowercase() ?: ""
-            val id = node.viewIdResourceName?.toString()?.lowercase() ?: ""
-            for (n in needles) {
-                val k = n.lowercase()
-                val idNeedle = k.replace(" ", "_")
-                if (t.contains(k) || cd.contains(k) || (idNeedle.isNotBlank() && id.contains(idNeedle))) {
-                    return true
-                }
-            }
-        } catch (_: Exception) {
-        }
-        val c = node.childCount
-        for (i in 0 until c) {
-            if (containsAnyText(node.getChild(i), needles, depth + 1)) return true
-        }
-        return false
     }
 }

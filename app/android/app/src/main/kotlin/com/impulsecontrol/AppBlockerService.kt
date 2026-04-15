@@ -26,7 +26,7 @@ class AppBlockerService : AccessibilityService() {
         private const val KEY_RULES_JSON = "blocked_rules_json"
         private const val KEY_INVITE_ROTATION_PENDING = "invite_rotation_pending"
         private const val KEY_SETTINGS_LOCKDOWN_UNTIL_MS = "settings_lockdown_until_ms"
-        private const val SETTINGS_LOCKDOWN_MS = 10 * 60 * 1000L
+        private const val SETTINGS_LOCKDOWN_MS = 3 * 60 * 1000L
         private const val KEY_USAGE_LIMIT_PREFIX = "usage_limit_min_"
         private const val KEY_USAGE_DAY_PREFIX = "usage_day_"
         private const val KEY_USAGE_TODAY_MS_PREFIX = "usage_today_ms_"
@@ -86,7 +86,6 @@ class AppBlockerService : AccessibilityService() {
     private var activeStartMs: Long = 0L
     private var lastUsageTickMs: Long = 0L
     private val featureLastTickMs: MutableMap<String, Long> = mutableMapOf()
-    private var lastSelfSeenElapsedMs: Long = 0L
     private var lastLauncherBypassLockMs: Long = 0L
 
     override fun onServiceConnected() {
@@ -105,10 +104,6 @@ class AppBlockerService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         val pkg = event.packageName?.toString() ?: return
-        if (pkg == packageName) {
-            lastSelfSeenElapsedMs = SystemClock.elapsedRealtime()
-        }
-
         val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
         val unlockUntil = prefs.getLong(keyUnlockUntil, 0L)
         val pinSet = prefs.getBoolean(keyPinSet, false)
@@ -141,7 +136,7 @@ class AppBlockerService : AccessibilityService() {
         }
         val hasAnyConfiguredRule = rules.length() > 0
         val shouldArmAntiUninstall = pinSet || inviteRotationPending || hasAnyConfiguredRule
-        val hasRule = rules.has(pkg)
+        val hasRule = hasSupportedReleaseRule(rules, pkg)
 
         // Strict Settings lockdown: while active, Settings should never be visible.
         val settingsLockdownUntil = prefs.getLong(KEY_SETTINGS_LOCKDOWN_UNTIL_MS, 0L)
@@ -157,18 +152,15 @@ class AppBlockerService : AccessibilityService() {
         }
 
         // Settings strict protection (AppLock style):
-        // The moment we detect the user is on NOKKON's surface inside Settings,
-        // we immediately kick them out and lock Settings for 10 minutes.
+        // The moment we detect the user is on NeuroLock's App Info / uninstall-style surface
+        // inside Settings, we kick them out and lock Settings for 3 minutes (refreshed on each hit).
         //
         // This prevents the iterative bypass: close PIN -> tap one button -> close PIN -> tap again.
         //
         // IMPORTANT: This must remain active even during the 1-hour "delay unlock" window.
         val settingsShouldLockDown = shouldArmAntiUninstall &&
             AntiUninstallHeuristics.shouldStartSettingsLockdown(this, event)
-        val settingsMentionsSelf = shouldArmAntiUninstall &&
-            AntiUninstallHeuristics.isSettingsLikeSurface(pkg) &&
-            AntiUninstallHeuristics.shouldRequirePinThrottled(this, event)
-        if (settingsShouldLockDown || settingsMentionsSelf) {
+        if (settingsShouldLockDown) {
             prefs.edit()
                 .putLong(KEY_SETTINGS_LOCKDOWN_UNTIL_MS, System.currentTimeMillis() + SETTINGS_LOCKDOWN_MS)
                 .commit()
@@ -193,29 +185,31 @@ class AppBlockerService : AccessibilityService() {
             )
             return
         }
-        // Anti-uninstall does not require block rules JSON to be non-empty (PIN alone is enough).
+        // Anti-uninstall: installer/Play Store use strict "uninstall our app" proximity (avoid WhatsApp/etc.).
+        // Settings-like surfaces only when App Info shows uninstall/force-stop for NeuroLock.
         val needsAntiUninstallPin = shouldArmAntiUninstall &&
-            AntiUninstallHeuristics.isSensitiveUninstallSurface(pkg) &&
-            AntiUninstallHeuristics.shouldRequirePinThrottled(this, event)
+            AntiUninstallHeuristics.shouldArmAntiUninstallForSensitivePackage(this, event, pkg)
 
         val launcherBypassDetected = shouldArmAntiUninstall &&
             LauncherUninstallBypassShield.shouldForceLock(
                 service = this,
                 event = event,
                 foregroundPackage = pkg,
-                lastSelfSeenElapsedMs = lastSelfSeenElapsedMs,
             )
         if (launcherBypassDetected) {
             val now = SystemClock.elapsedRealtime()
-            if (now - lastLauncherBypassLockMs < 8000L) return
-            lastLauncherBypassLockMs = now
-            triggerLock(
-                lockTarget = packageName,
-                packageName = pkg,
-                featuresForFlutter = listOf("anti_uninstall_launcher_bypass"),
-                forceHome = true,
-            )
-            return
+            if (now - lastLauncherBypassLockMs >= 1200L) {
+                lastLauncherBypassLockMs = now
+                triggerLock(
+                    lockTarget = packageName,
+                    packageName = pkg,
+                    featuresForFlutter = listOf("anti_uninstall_launcher_bypass"),
+                    forceHome = true,
+                )
+                return
+            }
+            // Do not return early while throttled: we still need downstream anti-uninstall
+            // checks (e.g. package-installer surfaces) to run for repeated attempts.
         }
 
         // Note: legacy keyword-based detection (uninstall/force stop) is no longer needed,
@@ -389,7 +383,10 @@ class AppBlockerService : AccessibilityService() {
         val out = ArrayList<String>()
         for (i in 0 until arr.length()) {
             val s = arr.optString(i, "")
-            if (s.isNotBlank() && s != "__full__") out.add(s)
+            if (s.isBlank() || s == "__full__") continue
+            // Release scope: only YouTube Shorts + Instagram Reels.
+            if (pkg == FeatureBlockDetector.PKG_YOUTUBE && s == "shorts") out.add(s)
+            if (pkg == FeatureBlockDetector.PKG_INSTAGRAM && s == "reels") out.add(s)
         }
         return out
     }
@@ -406,33 +403,32 @@ class AppBlockerService : AccessibilityService() {
         for (i in 0 until arr.length()) {
             feats.add(arr.optString(i, ""))
         }
-        if (feats.contains("__full__")) return true
-
+        // Release scope: ignore legacy full-app and non-target packages/features.
         if (pkg == FeatureBlockDetector.PKG_YOUTUBE) {
-            val ytShortsDetected = feats.contains("shorts") && shouldBlockYouTubeShortsOnly(event)
+            val shortsOnly = feats.intersect(setOf("shorts"))
+            if (shortsOnly.isEmpty()) return false
+            val ytShortsDetected = shouldBlockYouTubeShortsOnly(event)
             if (ytShortsDetected) {
                 return shouldEnforceFeatureBlock(getSharedPreferences(prefsName, MODE_PRIVATE), pkg, "shorts")
             }
-            return shouldBlockYouTube(event, feats)
+            return false
         }
-        if (pkg == FeatureBlockDetector.PKG_INSTAGRAM ||
-            pkg == FeatureBlockDetector.PKG_SNAPCHAT
-        ) {
+
+        if (pkg == FeatureBlockDetector.PKG_INSTAGRAM) {
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
                 val t = SystemClock.uptimeMillis()
                 if (t - lastSocialProbeMs < 550) return false
                 lastSocialProbeMs = t
             }
-            if (pkg == FeatureBlockDetector.PKG_INSTAGRAM && feats.contains("reels")) {
-                val reelsOnly = setOf("reels")
-                if (FeatureBlockDetector.shouldBlockGenericSocial(this, event, reelsOnly, pkg)) {
-                    return shouldEnforceFeatureBlock(getSharedPreferences(prefsName, MODE_PRIVATE), pkg, "reels")
-                }
+            if (!feats.contains("reels")) return false
+            val reelsOnly = setOf("reels")
+            if (FeatureBlockDetector.shouldBlockGenericSocial(this, event, reelsOnly, pkg)) {
+                return shouldEnforceFeatureBlock(getSharedPreferences(prefsName, MODE_PRIVATE), pkg, "reels")
             }
-            return FeatureBlockDetector.shouldBlockGenericSocial(this, event, feats, pkg)
+            return false
         }
 
-        return true
+        return false
     }
 
     /**
@@ -446,10 +442,28 @@ class AppBlockerService : AccessibilityService() {
         for (i in 0 until arr.length()) {
             feats.add(arr.optString(i, ""))
         }
-        if (feats.contains("__full__")) return true
-        if (pkg == FeatureBlockDetector.PKG_YOUTUBE && feats == setOf("shorts")) return false
-        if (pkg == FeatureBlockDetector.PKG_INSTAGRAM && feats == setOf("reels")) return false
-        return true
+        // Release scope: package-level limits are disabled for feature-only mode.
+        if (pkg == FeatureBlockDetector.PKG_YOUTUBE) {
+            return feats.contains("__full__") || feats.contains("videos")
+        }
+        if (pkg == FeatureBlockDetector.PKG_INSTAGRAM) {
+            return feats.contains("__full__") || feats.contains("stories") || feats.contains("messages")
+        }
+        return false
+    }
+
+    private fun hasSupportedReleaseRule(rules: JSONObject, pkg: String): Boolean {
+        if (pkg != FeatureBlockDetector.PKG_YOUTUBE && pkg != FeatureBlockDetector.PKG_INSTAGRAM) {
+            return false
+        }
+        val arr = rules.optJSONArray(pkg) ?: return false
+        if (arr.length() == 0) return false
+        for (i in 0 until arr.length()) {
+            val f = arr.optString(i, "")
+            if (pkg == FeatureBlockDetector.PKG_YOUTUBE && f == "shorts") return true
+            if (pkg == FeatureBlockDetector.PKG_INSTAGRAM && f == "reels") return true
+        }
+        return false
     }
 
     /**

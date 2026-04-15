@@ -184,6 +184,13 @@ object ReferenceBlockHeuristics {
                 return true
             }
 
+            val reelsOnly = feats.size == 1 && reelsOn
+            val storiesOnly = feats.size == 1 && storiesOn
+            val messagesOnly = feats.size == 1 && messagesOn
+            // Do not scan the whole tree for feature keywords when only one surface is enabled —
+            // e.g. bottom-nav "Reels" label on the home feed caused false blocks.
+            if (reelsOnly || storiesOnly || messagesOnly) return false
+
             keywordTreeFallback(service, feats)
         } finally {
             root.recycle()
@@ -211,6 +218,10 @@ object ReferenceBlockHeuristics {
             ) {
                 return true
             }
+            val snapsOnly = feats.size == 1 && snaps
+            val storiesOnly = feats.size == 1 && stories
+            if (snapsOnly || storiesOnly) return false
+
             keywordTreeFallback(service, feats)
         } finally {
             root.recycle()

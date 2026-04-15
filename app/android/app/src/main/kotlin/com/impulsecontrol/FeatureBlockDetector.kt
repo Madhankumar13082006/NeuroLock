@@ -21,14 +21,16 @@ object FeatureBlockDetector {
 
     /** Lowercase substrings — language coverage for UI labels. */
     private val KEYWORDS_SHORTS = listOf(
-        "shorts", "short", "kurzvideo", "kurzvideos", "cortos", "court métrage",
+        // Avoid bare "short" — matches "shortcut" in launcher/nav and causes false blocks.
+        "shorts", "kurzvideo", "kurzvideos", "cortos", "court métrage",
         "ショート", "쇼츠",
     )
     private val KEYWORDS_REELS = listOf(
         "reels", "reel", "рилс", "リール", "릴스",
     )
     private val KEYWORDS_STORIES = listOf(
-        "stories", "story", "storie", "geschichten", "historias", "ストーリー",
+        // Avoid bare "story" — matches "history".
+        "stories", "storie", "geschichten", "historias", "ストーリー",
         "스토리", "histoires",
     )
     private val KEYWORDS_FEED = listOf(
