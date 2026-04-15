@@ -21,7 +21,7 @@ object AntiUninstallHeuristics {
     private val SELF_LABEL_MARKERS = listOf(
         "neurolock",
         "neuro lock",
-        "force stop",
+        "nokkon",
         "impulsecontrol",
     )
 

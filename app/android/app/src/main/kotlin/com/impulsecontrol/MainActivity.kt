@@ -68,7 +68,7 @@ class MainActivity : FlutterActivity() {
         if (pinSet && existingHasRules && changed && !inviteRotationPending) {
             result.error(
                 "CONFIG_LOCKED",
-                "Blocked features are locked while PIN is active. Generate a fresh link to change rules.",
+                "Blocked features are locked while PIN is active. Remove PIN and generate a fresh link to change blocks.",
                 null,
             )
             return
@@ -78,7 +78,7 @@ class MainActivity : FlutterActivity() {
         if (pinSet && existingHasRules && !incomingHasRules && !inviteRotationPending) {
             result.error(
                 "CONFIG_LOCKED",
-                "Cannot clear blocked features while PIN is active. Generate a fresh link to reset.",
+                "Cannot clear blocked features while PIN is active. Remove PIN and generate a fresh link to reset.",
                 null,
             )
             return

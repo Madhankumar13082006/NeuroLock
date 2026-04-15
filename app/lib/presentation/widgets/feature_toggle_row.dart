@@ -282,6 +282,22 @@ class _FeatureToggleRowState extends ConsumerState<FeatureToggleRow> {
               // during the operation must not change which branch we take.
               final pinSetAtToggleTime = unlock.isPinSet;
 
+              // Once a trusted PIN is set, blocks become immutable.
+              // User must remove PIN, change blocks, then generate a fresh link.
+              if (unlock.isPinSet) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Blocks are locked while PIN is active. Remove PIN to change blocks, then generate a new invite link.',
+                      ),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+                return;
+              }
+
               // ── Turning ON: confirm dialog ────────────────────────────────
               if (nextValue) {
                 final confirmed = await InviteLinkFlow.showConfirmBlockDialog(

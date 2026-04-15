@@ -135,7 +135,9 @@ class AppBlockerService : AccessibilityService() {
             JSONObject()
         }
         val hasAnyConfiguredRule = rules.length() > 0
-        val shouldArmAntiUninstall = pinSet || inviteRotationPending || hasAnyConfiguredRule
+        // Only protect uninstall/settings surfaces after a trusted PIN exists.
+        // Before PIN setup (or after PIN removal), user should be able to uninstall / open Settings.
+        val shouldArmAntiUninstall = pinSet
         val hasRule = hasSupportedReleaseRule(rules, pkg)
 
         // Strict Settings lockdown: while active, Settings should never be visible.
