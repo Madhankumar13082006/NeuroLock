@@ -18,12 +18,115 @@ class MainActivity : FlutterActivity() {
     private val KEY_UNLOCK_UNTIL = "unlock_until_ms"
     private val KEY_PIN_SET = "pin_set"
     private val KEY_INVITE_ROTATION_PENDING = "invite_rotation_pending"
+    private val KEY_RULES_JSON = "blocked_rules_json"
+    private val KEY_SETTINGS_LOCKDOWN_UNTIL_MS = "settings_lockdown_until_ms"
     private fun usageLimitKey(pkg: String) = "usage_limit_min_$pkg"
     private fun usageDayKey(pkg: String) = "usage_day_$pkg"
     private fun usageTodayMsKey(pkg: String) = "usage_today_ms_$pkg"
     private fun featureUsageLimitKey(pkg: String, feature: String) = "feature_usage_limit_min_${pkg}_$feature"
     private fun featureUsageDayKey(pkg: String, feature: String) = "feature_usage_day_${pkg}_$feature"
     private fun featureUsageTodayMsKey(pkg: String, feature: String) = "feature_usage_today_ms_${pkg}_$feature"
+
+    private fun parseRulesOrNull(json: String): JSONObject? {
+        if (json.isBlank()) return JSONObject()
+        return try {
+            JSONObject(json)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun rulesSimilar(a: JSONObject, b: JSONObject): Boolean {
+        // org.json.JSONObject on Android does not consistently expose `similar(...)`
+        // across API levels / builds. Use canonical string comparison instead.
+        return a.toString() == b.toString()
+    }
+
+    private fun tryUpdateRulesJson(
+        incomingJson: String,
+        result: MethodChannel.Result,
+    ) {
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        val pinSet = prefs.getBoolean(KEY_PIN_SET, false)
+        val inviteRotationPending = prefs.getBoolean(KEY_INVITE_ROTATION_PENDING, false)
+
+        val incoming = parseRulesOrNull(incomingJson)
+        if (incoming == null) {
+            result.error("INVALID_RULES_JSON", "rulesJson is not valid JSON", null)
+            return
+        }
+
+        val existingRaw = prefs.getString(KEY_RULES_JSON, "{}") ?: "{}"
+        val existing = parseRulesOrNull(existingRaw) ?: JSONObject()
+
+        val existingHasRules = existing.length() > 0
+        val incomingHasRules = incoming.length() > 0
+        val changed = !rulesSimilar(existing, incoming)
+
+        // Once a PIN is set and any blocking rule exists, block config becomes immutable.
+        // The only allowed path is "fresh link" / rotation (tracked by inviteRotationPending).
+        if (pinSet && existingHasRules && changed && !inviteRotationPending) {
+            result.error(
+                "CONFIG_LOCKED",
+                "Blocked features are locked while PIN is active. Generate a fresh link to change rules.",
+                null,
+            )
+            return
+        }
+
+        // Prevent accidental wipes while PIN is set (common during UI edits when an empty config is sent briefly).
+        if (pinSet && existingHasRules && !incomingHasRules && !inviteRotationPending) {
+            result.error(
+                "CONFIG_LOCKED",
+                "Cannot clear blocked features while PIN is active. Generate a fresh link to reset.",
+                null,
+            )
+            return
+        }
+
+        // Accept update.
+        val canonical = incoming.toString()
+        prefs.edit()
+            .putString(KEY_RULES_JSON, canonical)
+            .commit()
+        AppBlockerService.updateBlockConfigJson(canonical)
+        result.success(null)
+    }
+
+    private fun resetLocalProtectionState(result: MethodChannel.Result) {
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        try {
+            val edit = prefs.edit()
+            edit.remove(KEY_UNLOCK_UNTIL)
+            edit.remove(KEY_PIN_SET)
+            edit.remove(KEY_INVITE_ROTATION_PENDING)
+            edit.remove(KEY_RULES_JSON)
+            edit.remove(KEY_SETTINGS_LOCKDOWN_UNTIL_MS)
+
+            // Remove usage keys (package + feature limits + day buckets)
+            for (k in prefs.all.keys) {
+                if (k.startsWith("usage_limit_min_") ||
+                    k.startsWith("usage_day_") ||
+                    k.startsWith("usage_today_ms_") ||
+                    k.startsWith("feature_usage_limit_min_") ||
+                    k.startsWith("feature_usage_day_") ||
+                    k.startsWith("feature_usage_today_ms_") ||
+                    k == "unlock_until_ms" ||
+                    k == "pin_set" ||
+                    k == "invite_rotation_pending" ||
+                    k == "blocked_rules_json" ||
+                    k == "settings_lockdown_until_ms"
+                ) {
+                    edit.remove(k)
+                }
+            }
+            edit.commit()
+        } catch (_: Exception) {
+            // best-effort; still proceed to reset in-memory rules
+        }
+        AppBlockerService.updateBlockConfigJson("{}")
+        result.success(null)
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -45,20 +148,11 @@ class MainActivity : FlutterActivity() {
                         for (p in packages) {
                             o.put(p, JSONArray().put("__full__"))
                         }
-                        val json = o.toString()
-                        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                            .putString("blocked_rules_json", json)
-                            .commit()
-                        AppBlockerService.updateBlockConfigJson(json)
-                        result.success(null)
+                        tryUpdateRulesJson(o.toString(), result)
                     }
                     "setBlockConfig" -> {
                         val json = call.argument<String>("rulesJson") ?: "{}"
-                        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                            .putString("blocked_rules_json", json)
-                            .commit()
-                        AppBlockerService.updateBlockConfigJson(json)
-                        result.success(null)
+                        tryUpdateRulesJson(json, result)
                     }
                     "setUnlockUntilMs" -> {
                         val untilMs = call.argument<Number>("untilMs")?.toLong()
@@ -83,6 +177,9 @@ class MainActivity : FlutterActivity() {
                             .putBoolean(KEY_INVITE_ROTATION_PENDING, pending)
                             .commit()
                         result.success(null)
+                    }
+                    "resetLocalProtectionState" -> {
+                        resetLocalProtectionState(result)
                     }
                     "isInviteRotationPending" -> {
                         val v = getSharedPreferences(PREFS, MODE_PRIVATE)

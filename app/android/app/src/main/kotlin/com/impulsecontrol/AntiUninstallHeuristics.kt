@@ -11,7 +11,7 @@ import android.view.accessibility.AccessibilityNodeInfo
  * "SMART SETTINGS PROTECTION" / page-aware checks instead of locking all of Settings).
  *
  * Only requests a PIN when the foreground UI clearly concerns **this** app
- * (app info, uninstall, open-by-default, storage for NOKKON, etc.).
+ * (app info, uninstall, open-by-default, storage for neurolock , etc.).
  */
 object AntiUninstallHeuristics {
 
@@ -21,7 +21,7 @@ object AntiUninstallHeuristics {
     private val SELF_LABEL_MARKERS = listOf(
         "neurolock",
         "neuro lock",
-        "nokkon",
+        "force stop",
         "impulsecontrol",
     )
 

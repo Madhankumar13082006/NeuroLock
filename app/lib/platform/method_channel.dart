@@ -80,6 +80,11 @@ class PlatformBridge {
   static Future<void> setInviteRotationPending(bool pending) =>
       _ch.invokeMethod('setInviteRotationPending', {'pending': pending});
 
+  /// Clears Android-side local protection state (PIN flag, unlock window, native rules JSON,
+  /// and usage counters). Use on logout so a new account starts clean.
+  static Future<void> resetLocalProtectionState() =>
+      _ch.invokeMethod('resetLocalProtectionState');
+
   static Future<bool> isInviteRotationPending() async {
     try {
       final v = await _ch.invokeMethod('isInviteRotationPending');

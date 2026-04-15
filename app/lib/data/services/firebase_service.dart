@@ -81,6 +81,18 @@ class FirebaseService {
 
   Future<void> logout() => _auth.signOut();
 
+  /// Clears all per-app blocks for the current user.
+  /// Used on logout to ensure the next login starts from a fresh state.
+  Future<void> clearAllBlocks() async {
+    final snap =
+        await _db.collection('users').doc(uid).collection('blocks').get();
+    final batch = _db.batch();
+    for (final d in snap.docs) {
+      batch.delete(d.reference);
+    }
+    await batch.commit();
+  }
+
   Future<String?> getUserName() async {
     final doc = await _db.collection('users').doc(uid).get();
     return doc.data()?['name'] as String?;

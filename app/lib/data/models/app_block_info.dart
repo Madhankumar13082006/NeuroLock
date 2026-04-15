@@ -28,7 +28,7 @@ class SupportedApp {
   });
 }
 
-/// YouTube, Instagram, Snapchat — four levers each (shorts, reels, stories, feed).
+/// Release scope: Only YouTube Shorts + Instagram Reels.
 const List<SupportedApp> kSupportedApps = [
   SupportedApp(
     packageName: 'com.google.android.youtube',
@@ -39,11 +39,6 @@ const List<SupportedApp> kSupportedApps = [
         key: 'shorts',
         label: 'Block Shorts',
         icon: Icons.video_library_rounded,
-      ),
-      FeatureBlock(
-        key: 'videos',
-        label: 'Block Full Videos',
-        icon: Icons.ondemand_video_rounded,
       ),
     ],
   ),
@@ -57,33 +52,6 @@ const List<SupportedApp> kSupportedApps = [
         label: 'Block Reels',
         icon: Icons.view_week_rounded,
         earlyAccess: true,
-      ),
-      FeatureBlock(
-        key: 'stories',
-        label: 'Block Stories',
-        icon: Icons.circle_outlined,
-      ),
-      FeatureBlock(
-        key: 'messages',
-        label: 'Block Messages',
-        icon: Icons.forum_rounded,
-      ),
-    ],
-  ),
-  SupportedApp(
-    packageName: 'com.snapchat.android',
-    displayName: 'Snapchat',
-    brandColor: Color(0xFFFFFC00),
-    features: [
-      FeatureBlock(
-        key: 'snaps',
-        label: 'Block Spotlight',
-        icon: Icons.play_circle_outline_rounded,
-      ),
-      FeatureBlock(
-        key: 'stories',
-        label: 'Block Stories',
-        icon: Icons.bubble_chart_outlined,
       ),
     ],
   ),

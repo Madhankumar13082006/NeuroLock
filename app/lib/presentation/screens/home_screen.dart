@@ -142,7 +142,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Screen monitoring',
+              'How NeuroLock works',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: AppTheme.textPrimary,
                     fontWeight: FontWeight.w600,
@@ -150,9 +150,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             const SizedBox(height: 10),
             Text(
-              'To show the lock screen when you open YouTube, Instagram, or '
-              'Snapchat, turn on NeuroLock under Accessibility in Android settings. '
-              'You can change this anytime.',
+              '1) Turn on a block (YouTube Shorts or Instagram Reels).\n'
+              '2) Tap Generate link and send it to a trusted person.\n'
+              '3) Your trusted person opens the link once and sets a 4-digit PIN.\n'
+              '4) From then on, blocked features stay locked until you enter the PIN.\n\n'
+              'Important: Do not open the invite link on this phone. The first opener sets the PIN and the link becomes invalid.',
               style: TextStyle(
                 color: AppTheme.textSecondary.withValues(alpha: 0.95),
                 height: 1.45,
@@ -181,19 +183,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       case 'com.google.android.youtube':
         return const {
           'Shorts': 52.0,
-          'Videos': 48.0,
         };
       case 'com.instagram.android':
         return const {
           'Reels': 48.0,
-          'Stories': 22.0,
-          'Messages': 30.0,
-        };
-      case 'com.snapchat.android':
-        return const {
-          'Spotlight': 30.0,
-          'Stories': 35.0,
-          'Other': 35.0,
         };
       default:
         return const {'Other': 100.0};
