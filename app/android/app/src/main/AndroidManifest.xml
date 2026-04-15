@@ -1,20 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Required permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     
     <application
         android:label="NeuroLock"
         android:name="${applicationName}"
         android:icon="@drawable/neurolock_logo"
         android:enableOnBackInvokedCallback="true"
-        android:usesCleartextTraffic="true">
-        <!-- Firebase reCAPTCHA config enforcement disabled for debug -->
-        <meta-data
-            android:name="com.google.firebase.appcheck.debug.provider"
-            android:value="com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory" />
+        android:usesCleartextTraffic="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -57,16 +51,6 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
-        <!-- Overlay Service -->
-        <service
-            android:name=".OverlayService"
-            android:exported="true"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-        </service>
-
         <!-- FCM Service -->
         <service
             android:name=".FcmService"
@@ -95,11 +79,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- Firebase meta-data -->
-        <meta-data
-            android:name="com.google.firebase.ml.vision.DEPENDENCIES"
-            android:value="ocr" />
-
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
@@ -119,7 +98,5 @@
         <!-- Query for all packages to monitor app launches -->
         <package android:name="com.instagram.android" />
         <package android:name="com.google.android.youtube" />
-        <package android:name="com.zhiliaoapp.musically" />
-        <package android:name="com.twitter.android" />
     </queries>
 </manifest>
