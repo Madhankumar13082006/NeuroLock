@@ -146,8 +146,10 @@ class FirebaseService {
       'unlockedUntil': null,
     });
 
-    // Same machine as Node API — GET /invite/:token serves the PIN page (local dev).
-    return '${AppConstants.inviteLinkBase}/invite/$token';
+    // Build invite URL safely to avoid accidental double slashes.
+    return Uri.parse('${AppConstants.inviteLinkBase}/')
+        .resolve('invite/$token')
+        .toString();
   }
 
   String _generateToken() {
