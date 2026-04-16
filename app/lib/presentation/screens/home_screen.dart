@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:installed_apps/installed_apps.dart';
 import '../../data/models/app_block_info.dart';
@@ -58,10 +59,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (enabled) return;
     _askedAccessibility = true;
 
+    Timer? poll;
+    var dialogOpen = true;
+    poll = Timer.periodic(const Duration(milliseconds: 450), (_) async {
+      if (!mounted || !dialogOpen) return;
+      final ok = await PlatformBridge.isAccessibilityEnabled();
+      if (!mounted || !dialogOpen) return;
+      if (ok) {
+        dialogOpen = false;
+        if (Navigator.of(context, rootNavigator: true).canPop()) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+      }
+    });
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       useRootNavigator: true,
+      routeSettings: const RouteSettings(name: 'accessibility_setup_dialog'),
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surface,
         title: const Text(
@@ -95,6 +110,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ],
       ),
     );
+    dialogOpen = false;
+    poll?.cancel();
+
+    // If user enabled Accessibility while the dialog was showing (or right after),
+    // do not re-prompt.
+    final enabledAfter = await PlatformBridge.isAccessibilityEnabled();
+    if (!mounted) return;
+    if (enabledAfter) {
+      _askedAccessibility = false;
+      return;
+    }
 
     // Allow re-prompting if they didn't enable it.
     _askedAccessibility = false;

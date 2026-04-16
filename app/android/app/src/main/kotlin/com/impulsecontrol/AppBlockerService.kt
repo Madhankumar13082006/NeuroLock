@@ -82,6 +82,7 @@ class AppBlockerService : AccessibilityService() {
     private val keyPinSet = "pin_set"
 
     private val overlay by lazy { BlockingOverlay(this) }
+    private val emotionalOverlay by lazy { EmotionalInterruptionOverlay(this) }
     private var activePkg: String? = null
     private var activeStartMs: Long = 0L
     private var lastUsageTickMs: Long = 0L
@@ -364,20 +365,33 @@ class AppBlockerService : AccessibilityService() {
             }
         }
 
-        val intent = Intent(this, MainActivity::class.java).apply {
-            action = Intent.ACTION_VIEW
-            putExtra("route", "/lock/$lockTarget")
-            putExtra("strict_exit_home", true)
-            addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                    Intent.FLAG_ACTIVITY_NO_ANIMATION or
-                    Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS,
-            )
-        }
-        startActivity(intent)
+        // UI layer: show the calm interruption screen ONLY for uninstall-related exits.
+        // Detection/blocking logic stays unchanged; this is strictly UI selection.
+        val isUninstallInterruption =
+            featuresForFlutter.any { it.startsWith("anti_uninstall") } ||
+                featuresForFlutter.any { it.startsWith("settings_lockdown") }
 
-        overlay.hideDelayed(if (forceHome) 1500 else 800)
+        if (forceHome && isUninstallInterruption) {
+            // Render as accessibility overlay for reliability across OEM ROMs.
+            emotionalOverlay.show(10)
+        } else {
+            val intent = Intent(this, MainActivity::class.java).apply {
+                action = Intent.ACTION_VIEW
+                putExtra("route", "/lock/$lockTarget")
+                putExtra("strict_exit_home", true)
+                addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_NO_ANIMATION or
+                        Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS,
+                )
+            }
+            startActivity(intent)
+        }
+
+        // For uninstall interruptions, we want the calm screen visible quickly.
+        val hideDelay = if (forceHome && isUninstallInterruption) 220L else if (forceHome) 1500L else 800L
+        overlay.hideDelayed(hideDelay)
     }
 
     private fun featureListForRules(rules: JSONObject, pkg: String): List<String> {
