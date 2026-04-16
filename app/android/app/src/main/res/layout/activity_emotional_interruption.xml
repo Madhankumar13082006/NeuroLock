@@ -7,125 +7,375 @@
     android:clickable="true"
     android:focusable="true">
 
-    <!-- Soft glow accents -->
+    <!-- Top-left soft purple glow -->
     <View
-        android:layout_width="260dp"
-        android:layout_height="260dp"
+        android:layout_width="280dp"
+        android:layout_height="280dp"
         android:layout_gravity="top|start"
-        android:layout_marginStart="-80dp"
-        android:layout_marginTop="-80dp"
-        android:alpha="0.55"
+        android:layout_marginStart="-100dp"
+        android:layout_marginTop="-100dp"
+        android:alpha="0.35"
         android:background="@drawable/glow_accent_purple" />
 
+    <!-- Bottom-right soft blue glow -->
     <View
-        android:layout_width="300dp"
-        android:layout_height="300dp"
+        android:layout_width="320dp"
+        android:layout_height="320dp"
         android:layout_gravity="bottom|end"
-        android:layout_marginEnd="-110dp"
-        android:layout_marginBottom="-110dp"
-        android:alpha="0.45"
+        android:layout_marginEnd="-130dp"
+        android:layout_marginBottom="-130dp"
+        android:alpha="0.30"
         android:background="@drawable/glow_accent_blue" />
 
-    <LinearLayout
+    <!-- Bottom-left faint pink glow -->
+    <View
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="-70dp"
+        android:layout_marginBottom="-70dp"
+        android:alpha="0.20"
+        android:background="@drawable/glow_accent_purple" />
+
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:gravity="center_horizontal"
-        android:orientation="vertical"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp"
-        android:paddingTop="44dp"
-        android:paddingBottom="28dp">
-
-        <ImageView
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:alpha="0.85"
-            android:contentDescription="@null"
-            android:src="@drawable/ic_lock_outline"
-            android:tint="#C98AFB" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:fontFamily="sans-serif-medium"
-            android:gravity="center"
-            android:text="Hold on."
-            android:textColor="#EFFFFFFF"
-            android:textSize="34sp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:fontFamily="sans-serif"
-            android:gravity="center"
-            android:lineSpacingExtra="4dp"
-            android:text="You can escape the lock. But you can’t escape yourself.\nThis moment is your choice."
-            android:textColor="#CFFFFFFF"
-            android:textSize="16sp" />
+        android:scrollbars="none"
+        android:overScrollMode="never">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical">
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingStart="28dp"
+            android:paddingEnd="28dp"
+            android:paddingTop="48dp"
+            android:paddingBottom="24dp">
 
-            <com.impulsecontrol.BreathingCircleView
-                android:id="@+id/emotional_breathing_circle"
-                android:layout_width="164dp"
-                android:layout_height="164dp" />
+            <!-- Lock icon -->
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:alpha="0.90"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_lock_outline"
+                android:tint="#C98AFB" />
 
+            <!-- "Hold on." -->
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
+                android:layout_marginTop="12dp"
                 android:fontFamily="sans-serif-medium"
                 android:gravity="center"
-                android:text="Close your eyes. Breathe."
-                android:textColor="#DFFFFFFF"
-                android:textSize="18sp" />
-        </LinearLayout>
+                android:letterSpacing="-0.01"
+                android:text="Hold on."
+                android:textColor="#FFFFFFFF"
+                android:textSize="38sp" />
 
-        <TextView
-            android:id="@+id/emotional_countdown"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:fontFamily="sans-serif-medium"
-            android:gravity="center"
-            android:letterSpacing="0.08"
-            android:text="00:10"
-            android:textColor="#CCFFFFFF"
-            android:textSize="40sp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:gravity="center"
-            android:orientation="horizontal">
-
-            <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:alpha="0.75"
-                android:contentDescription="@null"
-                android:src="@drawable/ic_hourglass"
-                android:tint="#CCFFFFFF" />
-
+            <!-- Subtitle line 1 -->
             <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:fontFamily="sans-serif-light"
+                android:gravity="center"
+                android:text="You already know"
+                android:textColor="#CCF0E8FF"
+                android:textSize="15sp" />
+
+            <!-- Subtitle line 2 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:fontFamily="sans-serif-light"
+                android:gravity="center"
+                android:text="you can break the lock."
+                android:textColor="#CCF0E8FF"
+                android:textSize="15sp" />
+
+            <!-- Subtitle line 3 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:fontFamily="sans-serif-light"
+                android:gravity="center"
+                android:text="But can you face"
+                android:textColor="#CCF0E8FF"
+                android:textSize="15sp" />
+
+            <!-- Subtitle highlighted line -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:text="what's inside you?"
+                android:textColor="#E866B8"
+                android:textSize="15sp" />
+
+            <!-- Meditation scene image card -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:background="@drawable/bg_meditation_card"
+                android:clipToOutline="true">
+
+                <ImageView
+                    android:layout_width="match_parent"
+                    android:layout_height="200dp"
+                    android:contentDescription="@null"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/ic_meditation_scene" />
+
+                <!-- Faint top fade overlay on image -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:layout_gravity="top"
+                    android:background="#20090E22" />
+
+                <!-- Faint bottom fade overlay on image -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:layout_gravity="bottom"
+                    android:background="#40090E22" />
+
+            </FrameLayout>
+
+            <!-- Heart icon -->
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_marginTop="20dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_heart_filled" />
+
+            <!-- Breathing instruction - line 1 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:text="Close your eyes."
+                android:textColor="#EEFFFFFF"
+                android:textSize="17sp" />
+
+            <!-- Breathing instruction - line 2 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:text="Breathe deep."
+                android:textColor="#EEFFFFFF"
+                android:textSize="17sp" />
+
+            <!-- Breathing instruction - line 3 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:text="And be honest with yourself."
+                android:textColor="#EEFFFFFF"
+                android:textSize="17sp" />
+
+            <!-- Breathing circle (hidden but preserved for Kotlin reference) -->
+            <com.impulsecontrol.BreathingCircleView
+                android:id="@+id/emotional_breathing_circle"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone" />
+
+            <!-- Motivational section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:alpha="0.65"
+                    android:text="♬"
+                    android:textColor="#C98AFB"
+                    android:textSize="12sp" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-light"
+                        android:gravity="center"
+                        android:text="You're not here to escape life."
+                        android:textColor="#99F0E8FF"
+                        android:textSize="13sp"
+                        android:textStyle="italic" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="sans-serif-light"
+                        android:gravity="center"
+                        android:text="You're here to build the one you deserve."
+                        android:textColor="#99F0E8FF"
+                        android:textSize="13sp"
+                        android:textStyle="italic" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- Subtle divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="20dp"
+                android:layout_marginStart="24dp"
+                android:layout_marginEnd="24dp"
+                android:background="@drawable/divider_subtle" />
+
+            <!-- "This moment is yours." row -->
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:alpha="0.78"
-                android:fontFamily="sans-serif"
-                android:text="This moment is your choice."
-                android:textColor="#CCFFFFFF"
-                android:textSize="13sp" />
+                android:layout_marginTop="16dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:alpha="0.65"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_hourglass"
+                    android:tint="#99FFFFFF" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="7dp"
+                    android:alpha="0.65"
+                    android:fontFamily="sans-serif-light"
+                    android:text="This moment is yours."
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="13sp" />
+
+            </LinearLayout>
+
+            <!-- Countdown timer -->
+            <TextView
+                android:id="@+id/emotional_countdown"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:fontFamily="sans-serif-light"
+                android:gravity="center"
+                android:letterSpacing="0.04"
+                android:text="00:10"
+                android:textColor="#FFFFFFFF"
+                android:textSize="52sp" />
+
+            <!-- Bottom bar: Inhale / dots / Exhale -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:alpha="0.70"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_leaf"
+                    android:tint="#9B6DDE" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:alpha="0.70"
+                    android:fontFamily="sans-serif-light"
+                    android:text="Inhale peace."
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="12sp" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
+
+                <!-- Dot indicators -->
+                <View
+                    android:layout_width="5dp"
+                    android:layout_height="5dp"
+                    android:alpha="0.45"
+                    android:background="@drawable/dot_indicator" />
+
+                <View
+                    android:layout_width="7dp"
+                    android:layout_height="7dp"
+                    android:layout_marginStart="5dp"
+                    android:layout_marginEnd="5dp"
+                    android:alpha="0.85"
+                    android:background="@drawable/dot_indicator" />
+
+                <View
+                    android:layout_width="5dp"
+                    android:layout_height="5dp"
+                    android:alpha="0.45"
+                    android:background="@drawable/dot_indicator" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="5dp"
+                    android:alpha="0.70"
+                    android:fontFamily="sans-serif-light"
+                    android:text="Exhale everything else."
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="12sp" />
+
+                <ImageView
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:alpha="0.70"
+                    android:contentDescription="@null"
+                    android:scaleX="-1"
+                    android:src="@drawable/ic_leaf"
+                    android:tint="#9B6DDE" />
+
+            </LinearLayout>
+
         </LinearLayout>
-    </LinearLayout>
+
+    </ScrollView>
 
 </FrameLayout>
-

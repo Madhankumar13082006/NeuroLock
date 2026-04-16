@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmd /c \"flutter build apk --debug 2>&1\")",
+      "Bash(cmd /c \"gradlew.bat assembleDebug 2>&1\")",
+      "Bash(powershell -Command \"./gradlew assembleDebug\")",
+      "Bash(powershell -Command '$env:JAVA_HOME = \"C:\\\\Program Files\\\\Microsoft\\\\jdk-21.0.4.7-hotspot\"; ./gradlew assembleDebug')",
+      "Bash(flutter build *)"
+    ]
+  }
+}

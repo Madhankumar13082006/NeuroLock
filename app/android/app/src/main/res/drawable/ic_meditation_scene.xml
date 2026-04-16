@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Meditation scene: deep-night silhouette of a person sitting cross-legged
+  on a still lake surface. Layers (bottom→top):
+    1. Deep-space sky gradient
+    2. Soft horizon aurora (purple / rose)
+    3. Moon disc + concentric halo rings
+    4. Water plane with gradient
+    5. Central moon reflection column on water
+    6. Horizontal shimmer ripples
+    7. Person silhouette (head + torso + crossed legs + arms)
+    8. Fine star dots
+    9. Vignette corners
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="360dp"
+    android:height="220dp"
+    android:viewportWidth="360"
+    android:viewportHeight="220">
+
+    <!-- ── 1. SKY: deep navy → midnight indigo ─────────────────────── -->
+    <path android:pathData="M0,0 L360,0 L360,220 L0,220 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear"
+                android:startX="180" android:startY="0"
+                android:endX="180" android:endY="220">
+                <item android:offset="0.00" android:color="#08091A" />
+                <item android:offset="0.40" android:color="#0D0B22" />
+                <item android:offset="0.72" android:color="#110D28" />
+                <item android:offset="1.00" android:color="#060810" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- ── 2A. AURORA: wide soft purple band across mid-horizon ──────── -->
+    <path android:pathData="M0,60 Q180,44 360,60 L360,112 Q180,96 0,112 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear"
+                android:startX="180" android:startY="60"
+                android:endX="180" android:endY="112">
+                <item android:offset="0.0" android:color="#00000000" />
+                <item android:offset="0.45" android:color="#28703AA8" />
+                <item android:offset="0.80" android:color="#12441870" />
+                <item android:offset="1.0" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- ── 2B. AURORA: narrower pink-rose tint at true horizon ────────── -->
+    <path android:pathData="M60,86 Q180,80 300,86 L300,104 Q180,98 60,104 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear"
+                android:startX="180" android:startY="86"
+                android:endX="180" android:endY="104">
+                <item android:offset="0.0" android:color="#00000000" />
+                <item android:offset="0.5" android:color="#1AC060A0" />
+                <item android:offset="1.0" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- ── 3A. MOON: outer soft glow halo (large, very transparent) ──── -->
+    <path android:pathData="M148,50 A32,32 0,1,0 212,50 A32,32 0,1,0 148,50">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial"
+                android:centerX="180" android:centerY="66"
+                android:gradientRadius="32">
+                <item android:offset="0.00" android:color="#00000000" />
+                <item android:offset="0.55" android:color="#00000000" />
+                <item android:offset="0.75" android:color="#15C8A0E8" />
+                <item android:offset="1.00" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- ── 3B. MOON: mid halo ─────────────────────────────────────────── -->
+    <path android:pathData="M164,52 A16,16 0,1,0 196,52 A16,16 0,1,0 164,52">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial"
+                android:centerX="180" android:centerY="66"
+                android:gradientRadius="16">
+                <item android:offset="0.00" android:color="#00000000" />
+                <item android:offset="0.60" android:color="#00000000" />
+                <item android:offset="0.82" android:color="#20B896DC" />
+                <item android:offset="1.00" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- ── 3C. MOON: inner bright disc ───────────────────────────────── -->
+    <path android:pathData="M172,58 A8,8 0,1,0 188,58 A8,8 0,1,0 172,58">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial"
+                android:centerX="180" android:centerY="66"
+                android:gradientRadius="8">
+                <item android:offset="0.00" android:color="#90E8D8FF" />
+                <item android:offset="0.55" android:color="#55B0A0D8" />
+                <item android:offset="1.00" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- ── 4. WATER PLANE ─────────────────────────────────────────────── -->
+    <path android:pathData="M0,126 L360,126 L360,220 L0,220 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear"
+                android:startX="180" android:startY="126"
+                android:endX="180" android:endY="220">
+                <item android:offset="0.00" android:color="#10131E" />
+                <item android:offset="0.35" android:color="#0C1018" />
+                <item android:offset="1.00" android:color="#060810" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- ── 5. MOON REFLECTION: vertical column on water ──────────────── -->
+    <path android:pathData="M166,126 L194,126 L194,220 L166,220 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear"
+                android:startX="180" android:startY="126"
+                android:endX="180" android:endY="220">
+                <item android:offset="0.00" android:color="#25C8D0FF" />
+                <item android:offset="0.18" android:color="#12A8B8E8" />
+                <item android:offset="0.55" android:color="#088090C0" />
+                <item android:offset="1.00" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- ── 6. WATER SHIMMER RIPPLES (horizontal ellipses) ────────────── -->
+    <!-- Closest to shore / person -->
+    <path android:pathData="M148,136 Q180,132 212,136 Q180,140 148,136 Z"
+        android:fillColor="#18DCEEFF" />
+    <path android:pathData="M152,142 Q180,139 208,142 Q180,145 152,142 Z"
+        android:fillColor="#12C8E8FF" />
+    <!-- Mid water -->
+    <path android:pathData="M88,152 Q140,148 192,152 Q140,156 88,152 Z"
+        android:fillColor="#10B0D0EE" />
+    <path android:pathData="M196,150 Q232,147 268,150 Q232,153 196,150 Z"
+        android:fillColor="#0CA8C8E8" />
+    <path android:pathData="M60,162 Q110,159 160,162 Q110,165 60,162 Z"
+        android:fillColor="#09A0C0E0" />
+    <path android:pathData="M190,160 Q230,157 270,160 Q230,163 190,160 Z"
+        android:fillColor="#09A0C0E0" />
+    <!-- Far water -->
+    <path android:pathData="M30,174 Q90,171 150,174 Q90,177 30,174 Z"
+        android:fillColor="#07809AAA" />
+    <path android:pathData="M200,172 Q255,169 310,172 Q255,175 200,172 Z"
+        android:fillColor="#07809AAA" />
+    <path android:pathData="M70,185 Q130,183 190,185 Q130,187 70,185 Z"
+        android:fillColor="#05607888" />
+    <path android:pathData="M175,184 Q225,182 275,184 Q225,186 175,184 Z"
+        android:fillColor="#05607888" />
+
+    <!-- ── 7A. PERSON: sitting platform / ground shadow ───────────────── -->
+    <path android:pathData="M150,128 Q180,125 210,128 L210,133 Q180,130 150,133 Z"
+        android:fillColor="#0A0C14" />
+
+    <!-- ── 7B. PERSON: crossed legs (lotus pose base) ────────────────── -->
+    <path android:pathData="
+        M155,128
+        C152,128 148,126 146,122 C144,117 146,113 150,111
+        C154,109 158,110 162,114
+        C165,110 169,108 173,108
+        L187,108
+        C191,108 195,110 198,114
+        C202,110 206,109 210,111
+        C214,113 216,117 214,122
+        C212,126 208,128 205,128 Z"
+        android:fillColor="#080A12" />
+
+    <!-- ── 7C. PERSON: torso ──────────────────────────────────────────── -->
+    <path android:pathData="
+        M170,108
+        C168,104 167,99 168,93
+        C169,87 173,83 180,83
+        C187,83 191,87 192,93
+        C193,99 192,104 190,108 Z"
+        android:fillColor="#080A12" />
+
+    <!-- ── 7D. PERSON: neck + head ────────────────────────────────────── -->
+    <path android:pathData="M178,84 L182,84 L182,81 L178,81 Z"
+        android:fillColor="#080A12" />
+    <path android:pathData="M180,81 A7,7 0,1,0 180,67 A7,7 0,1,0 180,81"
+        android:fillColor="#080A12" />
+
+    <!-- ── 7E. PERSON: arms resting on knees ─────────────────────────── -->
+    <path android:pathData="M170,108 C166,110 158,116 156,122"
+        android:strokeColor="#080A12"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path android:pathData="M190,108 C194,110 202,116 204,122"
+        android:strokeColor="#080A12"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- ── 8. STARS ────────────────────────────────────────────────────── -->
+    <!-- Large bright stars (cross/plus shape) -->
+    <path android:pathData="M34,18 L34.8,21 L38,21.8 L34.8,22.6 L34,25.6 L33.2,22.6 L30,21.8 L33.2,21 Z"
+        android:fillColor="#60E8F8FF" />
+    <path android:pathData="M315,12 L315.7,15 L318.7,15.7 L315.7,16.4 L315,19.4 L314.3,16.4 L311.3,15.7 L314.3,15 Z"
+        android:fillColor="#55E0F0FF" />
+    <path android:pathData="M276,42 L276.6,44.6 L279.2,43.6 L278.2,46.2 L280.8,46.8 L278.2,47.4 L279.2,50 L276.6,49 L276,51.6 L275.4,49 L272.8,50 L273.8,47.4 L271.2,46.8 L273.8,46.2 L272.8,43.6 L275.4,44.6 Z"
+        android:fillColor="#45C8D8F0" />
+    <!-- Small dots -->
+    <path android:pathData="M78,28 A1.8,1.8 0,1,0 78,24.4 A1.8,1.8 0,1,0 78,28"
+        android:fillColor="#38B8CCE8" />
+    <path android:pathData="M120,16 A1.5,1.5 0,1,0 120,13 A1.5,1.5 0,1,0 120,16"
+        android:fillColor="#30B0C0E0" />
+    <path android:pathData="M156,32 A1.2,1.2 0,1,0 156,29.6 A1.2,1.2 0,1,0 156,32"
+        android:fillColor="#28A8B8D8" />
+    <path android:pathData="M228,20 A1.5,1.5 0,1,0 228,17 A1.5,1.5 0,1,0 228,20"
+        android:fillColor="#30A8C0E0" />
+    <path android:pathData="M254,38 A1.2,1.2 0,1,0 254,35.6 A1.2,1.2 0,1,0 254,38"
+        android:fillColor="#25A0B8D8" />
+    <path android:pathData="M342,30 A1.8,1.8 0,1,0 342,26.4 A1.8,1.8 0,1,0 342,30"
+        android:fillColor="#35B0C8E8" />
+    <path android:pathData="M20,42 A1.2,1.2 0,1,0 20,39.6 A1.2,1.2 0,1,0 20,42"
+        android:fillColor="#20909090" />
+    <path android:pathData="M55,55 A1.0,1.0 0,1,0 55,53 A1.0,1.0 0,1,0 55,55"
+        android:fillColor="#18909090" />
+    <path android:pathData="M300,56 A1.0,1.0 0,1,0 300,54 A1.0,1.0 0,1,0 300,56"
+        android:fillColor="#18909090" />
+    <path android:pathData="M336,52 A1.2,1.2 0,1,0 336,49.6 A1.2,1.2 0,1,0 336,52"
+        android:fillColor="#20909090" />
+    <!-- Faint distant specks -->
+    <path android:pathData="M100,48 A0.8,0.8 0,1,0 100,46.4 A0.8,0.8 0,1,0 100,48"
+        android:fillColor="#15888888" />
+    <path android:pathData="M200,12 A0.8,0.8 0,1,0 200,10.4 A0.8,0.8 0,1,0 200,12"
+        android:fillColor="#15888888" />
+    <path android:pathData="M260,22 A0.8,0.8 0,1,0 260,20.4 A0.8,0.8 0,1,0 260,22"
+        android:fillColor="#12888888" />
+    <path android:pathData="M145,8 A0.8,0.8 0,1,0 145,6.4 A0.8,0.8 0,1,0 145,8"
+        android:fillColor="#12888888" />
+    <path android:pathData="M330,42 A0.8,0.8 0,1,0 330,40.4 A0.8,0.8 0,1,0 330,42"
+        android:fillColor="#10888888" />
+
+    <!-- ── 9. VIGNETTE: darken all four corners ───────────────────────── -->
+    <!-- Top-left -->
+    <path android:pathData="M0,0 L120,0 Q0,0 0,120 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial"
+                android:centerX="0" android:centerY="0"
+                android:gradientRadius="130">
+                <item android:offset="0.0" android:color="#60060810" />
+                <item android:offset="1.0" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Top-right -->
+    <path android:pathData="M240,0 L360,0 L360,120 Q360,0 240,0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial"
+                android:centerX="360" android:centerY="0"
+                android:gradientRadius="130">
+                <item android:offset="0.0" android:color="#60060810" />
+                <item android:offset="1.0" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Bottom-left -->
+    <path android:pathData="M0,100 Q0,220 120,220 L0,220 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial"
+                android:centerX="0" android:centerY="220"
+                android:gradientRadius="130">
+                <item android:offset="0.0" android:color="#55060810" />
+                <item android:offset="1.0" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Bottom-right -->
+    <path android:pathData="M240,220 Q360,220 360,100 L360,220 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial"
+                android:centerX="360" android:centerY="220"
+                android:gradientRadius="130">
+                <item android:offset="0.0" android:color="#55060810" />
+                <item android:offset="1.0" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+</vector>
