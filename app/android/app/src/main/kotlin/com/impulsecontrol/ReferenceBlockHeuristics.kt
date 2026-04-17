@@ -92,15 +92,8 @@ object ReferenceBlockHeuristics {
     fun instagramReelsOrClipsSurface(root: AccessibilityNodeInfo?): Boolean =
         hasViewId(root, IG_CLIPS_VIEW_PAGER) || hasViewId(root, IG_CLIPS_VIDEO_CONTAINER)
 
-    private fun instagramReelsStrictSurface(root: AccessibilityNodeInfo?): Boolean {
-        if (instagramReelsOrClipsSurface(root)) return true
-        if (root == null) return false
-        return containsViewIdSubstring(
-            root,
-            setOf("clips_viewer", "clips_video", "reel", "clips"),
-            0,
-        )
-    }
+    private fun instagramReelsStrictSurface(root: AccessibilityNodeInfo?): Boolean =
+        instagramReelsOrClipsSurface(root)
 
     fun instagramHomeFeedSurface(root: AccessibilityNodeInfo?): Boolean =
         hasViewId(root, IG_ROW_FEED_PROFILE) ||
