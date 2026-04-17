@@ -13,6 +13,7 @@ class AppConstants {
 
   static const String accessTokenKey = 'access_token';
   static const String refreshTokenKey = 'refresh_token';
+  static const String supportEmail = 'neurolock.app@gmail.com';
 
   static const List<Map<String, String>> defaultBlockedApps = [
     {'packageName': 'com.instagram.android', 'appName': 'Instagram'},

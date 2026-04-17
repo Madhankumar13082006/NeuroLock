@@ -57,7 +57,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Account created! Please sign in.'),
+          content: Text(
+              'Account created successfully. Verify your email, then sign in.'),
           backgroundColor: AppTheme.success,
           behavior: SnackBarBehavior.floating,
         ),
@@ -151,6 +152,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         child: TextField(
                           controller: _first,
                           textCapitalization: TextCapitalization.words,
+                          onChanged: (_) {
+                            if (_localError != null) {
+                              setState(() => _localError = null);
+                            }
+                          },
                           style: const TextStyle(color: AppTheme.textPrimary),
                           decoration: const InputDecoration(
                             labelText: 'First name',
@@ -164,6 +170,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         child: TextField(
                           controller: _last,
                           textCapitalization: TextCapitalization.words,
+                          onChanged: (_) {
+                            if (_localError != null) {
+                              setState(() => _localError = null);
+                            }
+                          },
                           style: const TextStyle(color: AppTheme.textPrimary),
                           decoration: const InputDecoration(
                             labelText: 'Last name',
@@ -178,6 +189,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   TextField(
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
+                    onChanged: (_) {
+                      if (_localError != null) {
+                        setState(() => _localError = null);
+                      }
+                    },
                     style: const TextStyle(color: AppTheme.textPrimary),
                     decoration: const InputDecoration(
                       labelText: 'Email address',
@@ -189,6 +205,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   TextField(
                     controller: _pass,
                     obscureText: _obscure,
+                    onChanged: (_) {
+                      if (_localError != null) {
+                        setState(() => _localError = null);
+                      }
+                    },
                     style: const TextStyle(color: AppTheme.textPrimary),
                     decoration: InputDecoration(
                       labelText: 'Password',
@@ -211,6 +232,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     controller: _confirm,
                     obscureText: _obscure,
                     style: const TextStyle(color: AppTheme.textPrimary),
+                    onChanged: (_) {
+                      if (_localError != null) {
+                        setState(() => _localError = null);
+                      }
+                    },
                     onSubmitted: (_) => _register(),
                     decoration: const InputDecoration(
                       labelText: 'Confirm password',

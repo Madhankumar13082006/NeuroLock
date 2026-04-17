@@ -15,6 +15,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _email = TextEditingController();
   final _pass = TextEditingController();
   bool _obscure = true;
+  String? _localError;
 
   @override
   void dispose() {
@@ -24,16 +25,47 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _login() async {
+    setState(() => _localError = null);
+    if (_email.text.trim().isEmpty || _pass.text.isEmpty) {
+      setState(() => _localError = 'Enter both email and password.');
+      return;
+    }
     final ok = await ref
         .read(authNotifierProvider.notifier)
         .login(_email.text, _pass.text);
-    if (ok && mounted) context.go('/home');
+    if (ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Login successful. Welcome back.'),
+          backgroundColor: AppTheme.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      context.go('/home');
+    }
+  }
+
+  Future<void> _googleLogin() async {
+    setState(() => _localError = null);
+    final ok = await ref.read(authNotifierProvider.notifier).loginWithGoogle();
+    if (ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Google sign-in successful.'),
+          backgroundColor: AppTheme.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      context.go('/home');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final st = ref.watch(authNotifierProvider);
     final loading = st.status == AuthStatus.loading;
+    final err =
+        _localError ?? (st.status == AuthStatus.error ? st.error : null);
 
     return Scaffold(
       backgroundColor: AppTheme.bg,
@@ -102,6 +134,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       TextField(
                         controller: _email,
                         keyboardType: TextInputType.emailAddress,
+                        onChanged: (_) {
+                          if (_localError != null) {
+                            setState(() => _localError = null);
+                          }
+                        },
                         style: const TextStyle(color: AppTheme.textPrimary),
                         decoration: const InputDecoration(
                           labelText: 'Email address',
@@ -114,6 +151,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         controller: _pass,
                         obscureText: _obscure,
                         style: const TextStyle(color: AppTheme.textPrimary),
+                        onChanged: (_) {
+                          if (_localError != null) {
+                            setState(() => _localError = null);
+                          }
+                        },
                         onSubmitted: (_) => _login(),
                         decoration: InputDecoration(
                           labelText: 'Password',
@@ -133,7 +175,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
 
                       // ── Error banner ────────────────────────────────────────
-                      if (st.status == AuthStatus.error) ...[
+                      if (err != null) ...[
                         const SizedBox(height: 14),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -151,8 +193,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  st.error ??
-                                      'Something went wrong. Try again.',
+                                  err,
                                   style: const TextStyle(
                                       color: AppTheme.danger, fontSize: 13),
                                 ),
@@ -176,6 +217,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ),
                               )
                             : const Text('Sign in'),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: loading ? null : _googleLogin,
+                        icon: const Icon(Icons.g_mobiledata_rounded, size: 24),
+                        label: const Text('Continue with Google'),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Email login requires verified inbox ownership.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppTheme.textSecondary.withValues(alpha: 0.8),
+                          fontSize: 12,
+                        ),
                       ),
                       const SizedBox(height: 18),
                       Row(

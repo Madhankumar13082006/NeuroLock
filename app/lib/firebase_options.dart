@@ -9,6 +9,11 @@ class DefaultFirebaseOptions {
     return android;
   }
 
+  // OAuth web client ID from Firebase project; required by Google Sign-In
+  // to reliably return an ID token for FirebaseAuth on Android.
+  static const String androidGoogleWebClientId =
+      '319165697711-b68v772mvtk9hv9anup5si1qfocf6gls.apps.googleusercontent.com';
+
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCPZtdvrDq3LtvjpYxyf-PLzcefZa9aNWQ',
     appId: '1:319165697711:android:5cb3cef4ea76a739130e5a',

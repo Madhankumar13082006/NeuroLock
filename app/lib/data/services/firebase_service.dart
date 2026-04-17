@@ -2,11 +2,13 @@ import 'dart:math';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:bcrypt/bcrypt.dart';
 import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants.dart';
+import '../../firebase_options.dart';
 
 class PinVerifyResult {
   final bool ok;
@@ -54,6 +56,10 @@ class LockStateDoc {
 class FirebaseService {
   final _auth = FirebaseAuth.instance;
   final _db = FirebaseFirestore.instance;
+  final _google = GoogleSignIn(
+    // Use Firebase web OAuth client so Android returns a valid ID token.
+    serverClientId: DefaultFirebaseOptions.androidGoogleWebClientId,
+  );
 
   User? get currentUser => _auth.currentUser;
   String get uid => _auth.currentUser!.uid;
@@ -64,22 +70,89 @@ class FirebaseService {
     final cred = await _auth.createUserWithEmailAndPassword(
         email: email, password: password);
 
-    // Save user profile to Firestore with proper types
-    await _db.collection('users').doc(cred.user!.uid).set({
-      'email': email,
-      'name': name,
-      'uid': cred.user!.uid,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    // Account creation already succeeded above. Best-effort profile sync and
+    // verification email should not flip UX into a false "registration failed".
+    try {
+      await _upsertUserProfile(cred.user!, fallbackName: name);
+    } catch (_) {}
+    try {
+      await cred.user!.sendEmailVerification();
+    } catch (_) {}
 
-    await _auth.signOut(); // force login after register
+    // Force ownership verification before account can be used.
+    await _auth.signOut();
   }
 
   Future<void> login(String email, String password) async {
-    await _auth.signInWithEmailAndPassword(email: email, password: password);
+    final cred =
+        await _auth.signInWithEmailAndPassword(email: email, password: password);
+    final user = cred.user;
+    if (user == null) return;
+
+    try {
+      await _upsertUserProfile(user);
+    } catch (_) {}
+    await user.reload();
+    final refreshed = _auth.currentUser;
+    if (refreshed != null && !refreshed.emailVerified) {
+      await refreshed.sendEmailVerification();
+      await _auth.signOut();
+      throw FirebaseAuthException(
+        code: 'email-not-verified',
+        message: 'Verify your email before signing in.',
+      );
+    }
+  }
+
+  Future<void> loginWithGoogle() async {
+    await _google.signOut();
+    final account = await _google.signIn();
+    if (account == null) {
+      throw FirebaseAuthException(
+        code: 'aborted-by-user',
+        message: 'Google sign-in was cancelled.',
+      );
+    }
+    final googleAuth = await account.authentication;
+    if (googleAuth.idToken == null || googleAuth.idToken!.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'google-id-token-missing',
+        message: 'Google sign-in did not return ID token.',
+      );
+    }
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+    final cred = await _auth.signInWithCredential(credential);
+    final user = cred.user;
+    if (user != null) {
+      try {
+        await _upsertUserProfile(
+          user,
+          fallbackName: user.displayName,
+        );
+      } catch (_) {}
+    }
   }
 
   Future<void> logout() => _auth.signOut();
+
+  Future<void> _upsertUserProfile(User user, {String? fallbackName}) async {
+    await _db.collection('users').doc(user.uid).set({
+      'email': user.email ?? '',
+      'name': (user.displayName?.trim().isNotEmpty == true)
+          ? user.displayName
+          : (fallbackName ?? '').trim(),
+      'uid': user.uid,
+      'createdAt': FieldValue.serverTimestamp(),
+      'provider':
+          user.providerData.any((p) => p.providerId == 'google.com')
+              ? 'google'
+              : 'email',
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
 
   /// Clears all per-app blocks for the current user.
   /// Used on logout to ensure the next login starts from a fresh state.

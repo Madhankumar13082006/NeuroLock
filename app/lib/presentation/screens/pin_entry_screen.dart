@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../core/constants.dart';
 import '../../core/theme.dart';
 
 class PinEntryDialog extends StatefulWidget {
@@ -16,6 +19,7 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
       setState(() => _pin += key);
       if (_pin.length == 4) {
         Future.delayed(const Duration(milliseconds: 200), () {
+          if (!mounted) return;
           Navigator.of(context).pop(_pin);
         });
       }
@@ -23,8 +27,22 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
   }
 
   void _delete() {
-    if (_pin.isNotEmpty)
+    if (_pin.isNotEmpty) {
       setState(() => _pin = _pin.substring(0, _pin.length - 1));
+    }
+  }
+
+  Future<void> _contactSupport() async {
+    final userEmail = FirebaseAuth.instance.currentUser?.email ?? 'unknown';
+    final subject = Uri.encodeComponent('NeuroLock PIN support request');
+    final body = Uri.encodeComponent(
+      'User email: $userEmail\n'
+      'Issue: Forgot trusted PIN\n\n'
+      'Please help with secure account recovery.',
+    );
+    final uri =
+        Uri.parse('mailto:${AppConstants.supportEmail}?subject=$subject&body=$body');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -35,6 +53,14 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
       child: Padding(
         padding: const EdgeInsets.all(28),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _contactSupport,
+              icon: const Icon(Icons.support_agent_rounded, size: 18),
+              label: const Text('Customer support'),
+            ),
+          ),
           Container(
             height: 54,
             width: 54,

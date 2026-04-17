@@ -12,7 +12,20 @@
           "package_name": "com.impulsecontrol"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "319165697711-8ra1pasrtgqc3gdulujhhge0uvdj41n6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.impulsecontrol",
+            "certificate_hash": "1037791bf56882ada5bf76ea0c5789f264c76ca2"
+          }
+        },
+        {
+          "client_id": "319165697711-b68v772mvtk9hv9anup5si1qfocf6gls.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCPZtdvrDq3LtvjpYxyf-PLzcefZa9aNWQ"
@@ -20,9 +33,13 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
-        },
-        "recaptcha_service": {}
+          "other_platform_oauth_client": [
+            {
+              "client_id": "319165697711-b68v772mvtk9hv9anup5si1qfocf6gls.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
       }
     }
   ],
