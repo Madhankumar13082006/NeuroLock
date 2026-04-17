@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
@@ -34,26 +35,33 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   Future<void> _register() async {
     setState(() => _localError = null);
+    final email = _email.text.trim();
+    final pass = _pass.text;
     if (_first.text.trim().isEmpty || _last.text.trim().isEmpty) {
       setState(() => _localError = 'Enter your first and last name.');
+      return;
+    }
+    if (email.isEmpty ||
+        !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+      setState(() => _localError = 'Enter a valid email address.');
       return;
     }
     if (!_agree) {
       setState(() => _localError = 'Please agree to the Terms & Conditions.');
       return;
     }
-    if (_pass.text != _confirm.text) {
+    if (pass != _confirm.text) {
       setState(() => _localError = 'Passwords do not match.');
       return;
     }
-    if (_pass.text.length < 6) {
+    if (pass.length < 6) {
       setState(() => _localError = 'Password must be at least 6 characters.');
       return;
     }
     final name = '${_first.text.trim()} ${_last.text.trim()}';
     final ok = await ref
         .read(authNotifierProvider.notifier)
-        .register(_email.text, _pass.text, name);
+        .register(email, pass, name);
     if (ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -247,37 +255,45 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   const SizedBox(height: 18),
 
                   // ── Terms checkbox ──────────────────────────────────────
-                  GestureDetector(
-                    onTap: () => setState(() => _agree = !_agree),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: Checkbox(
-                            value: _agree,
-                            onChanged: (v) =>
-                                setState(() => _agree = v ?? false),
-                            side: BorderSide(
-                              color:
-                                  AppTheme.textSecondary.withValues(alpha: 0.5),
-                            ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: Checkbox(
+                          value: _agree,
+                          onChanged: (v) => setState(() => _agree = v ?? false),
+                          side: BorderSide(
+                            color: AppTheme.textSecondary.withValues(alpha: 0.5),
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'I agree to the Terms & Conditions',
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: RichText(
+                          text: TextSpan(
                             style: TextStyle(
-                              color:
-                                  AppTheme.textSecondary.withValues(alpha: 0.9),
+                              color: AppTheme.textSecondary.withValues(alpha: 0.9),
                               fontSize: 14,
                             ),
+                            children: [
+                              const TextSpan(text: 'I agree to the '),
+                              TextSpan(
+                                text: 'Terms & Conditions',
+                                style: const TextStyle(
+                                  color: AppTheme.primary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = () => context.push('/terms'),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
 
                   // ── Error banner ────────────────────────────────────────

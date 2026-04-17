@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import '../../data/services/firebase_service.dart';
@@ -84,14 +85,40 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<bool> register(String email, String pass, String name) async {
     state = const AuthState(status: AuthStatus.loading);
+    final normalizedEmail = email.trim();
     try {
-      await _svc.register(email.trim(), pass, name.trim());
+      await _svc.register(normalizedEmail, pass, name.trim());
       state = const AuthState(status: AuthStatus.success);
       return true;
     } on FirebaseAuthException catch (e) {
+      if (await _treatAsRegisterSuccessIfCreated(normalizedEmail)) {
+        return true;
+      }
       state = AuthState(status: AuthStatus.error, error: _msg(e.code));
       return false;
+    } on FirebaseException catch (e) {
+      if (await _treatAsRegisterSuccessIfCreated(normalizedEmail)) {
+        return true;
+      }
+      final code = _extractCode(e.code, e.message);
+      state = AuthState(status: AuthStatus.error, error: _msg(code));
+      return false;
+    } on PlatformException catch (e) {
+      if (await _treatAsRegisterSuccessIfCreated(normalizedEmail)) {
+        return true;
+      }
+      final code = _extractCode(e.code, e.message);
+      state = AuthState(status: AuthStatus.error, error: _msg(code));
+      return false;
     } catch (e) {
+      if (await _treatAsRegisterSuccessIfCreated(normalizedEmail)) {
+        return true;
+      }
+      final code = _extractCode(null, e.toString());
+      if (code == 'email-already-in-use') {
+        state = AuthState(status: AuthStatus.error, error: _msg(code));
+        return false;
+      }
       state = const AuthState(
         status: AuthStatus.error,
         error: 'Failed to create account. Please try again.',
@@ -115,6 +142,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return 'Password too weak. Use at least 6 characters.';
       case 'invalid-email':
         return 'Enter a valid email address.';
+      case 'network-request-failed':
+        return 'Network issue detected. Please check internet and retry.';
       case 'email-not-verified':
         return 'Please verify your email from inbox, then sign in.';
       case 'recaptcha-error':
@@ -127,9 +156,64 @@ class AuthNotifier extends StateNotifier<AuthState> {
       case 'sign_in_failed':
       case 'DEVELOPER_ERROR':
         return 'Google sign-in configuration error. Add SHA-1/SHA-256 in Firebase for this app.';
+      case 'internal-error':
+        return 'Authentication service is temporarily unavailable. Please try again.';
       default:
         return 'Something went wrong. Try again.';
     }
+  }
+
+  String _extractCode(String? rawCode, String? rawMessage) {
+    final code = (rawCode ?? '').toLowerCase();
+    final message = (rawMessage ?? '').toLowerCase();
+
+    if (code.contains('email-already-in-use') ||
+        message.contains('email-already-in-use') ||
+        message.contains('already in use') ||
+        message.contains('already registered')) {
+      return 'email-already-in-use';
+    }
+    if (code.contains('invalid-email') || message.contains('invalid email')) {
+      return 'invalid-email';
+    }
+    if (code.contains('weak-password') || message.contains('weak-password')) {
+      return 'weak-password';
+    }
+    if (code.contains('network-request-failed') ||
+        message.contains('network')) {
+      return 'network-request-failed';
+    }
+    return rawCode ?? 'unknown';
+  }
+
+  Future<bool> _emailHasAnySignInMethod(String email) async {
+    try {
+      final methods = await FirebaseAuth.instance.fetchSignInMethodsForEmail(
+        email,
+      );
+      return methods.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> _treatAsRegisterSuccessIfCreated(String email) async {
+    final current = _svc.currentUser;
+    if (current != null && (current.email ?? '').toLowerCase() == email.toLowerCase()) {
+      state = const AuthState(status: AuthStatus.success);
+      try {
+        await _svc.logout();
+      } catch (_) {}
+      return true;
+    }
+
+    final accountExists = await _emailHasAnySignInMethod(email);
+    if (accountExists) {
+      state = const AuthState(status: AuthStatus.success);
+      return true;
+    }
+
+    return false;
   }
 }
 

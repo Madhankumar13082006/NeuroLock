@@ -247,10 +247,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('PIN removed. Blocks remain active.'),
+        content: Text('PIN removed. All protections are now OFF.'),
         behavior: SnackBarBehavior.floating,
       ),
     );
+    for (final app in kSupportedApps) {
+      ref.invalidate(blockProvider(app.packageName));
+    }
   }
 
   @override

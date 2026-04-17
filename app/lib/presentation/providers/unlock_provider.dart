@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/app_list.dart';
 import '../../data/services/firebase_service.dart';
 import '../../platform/method_channel.dart';
 import 'auth_provider.dart';
@@ -32,6 +34,7 @@ class UnlockState {
 class UnlockNotifier extends StateNotifier<UnlockState> {
   final FirebaseService _svc;
   Timer? _timer;
+  Timer? _pollTimer;
   StreamSubscription<LockStateDoc>? _sub;
   // Tracks whether the active unlock window was opened by entering the PIN
   // (vs. the 20-minute delay escape route). When a PIN-based unlock expires we
@@ -41,36 +44,50 @@ class UnlockNotifier extends StateNotifier<UnlockState> {
 
   UnlockNotifier(this._svc) : super(const UnlockState()) {
     _startWatching();
+    _startPolling();
   }
 
   void _startWatching() {
     _sub?.cancel();
     _sub = _svc.watchLockState().listen((doc) async {
-      final now = DateTime.now();
-      final unlocked =
-          doc.unlockExpiry != null && doc.unlockExpiry!.isAfter(now);
-      state = UnlockState(
-        isLocked: doc.isLocked,
-        isPinSet: doc.isPinSet,
-        isUnlocked: unlocked,
-        expiresAt: doc.unlockExpiry,
-        delayTimer: doc.delayTimer,
-      );
-      await PlatformBridge.setPinSet(doc.isPinSet);
-      if (doc.isPinSet) {
-        await PlatformBridge.setInviteRotationPending(false);
-      }
-      // Cache the trusted PIN hash locally so PIN unlock works offline.
-      await _svc.cacheTrustedPinHashForOffline(doc.currentPinHash);
-      await PlatformBridge.setUnlockUntilMs(
-        unlocked ? doc.unlockExpiry!.millisecondsSinceEpoch : null,
-      );
-      if (unlocked) {
-        _scheduleUnlockExpiryTimer();
-      } else {
-        _timer?.cancel();
-      }
+      await _applyLockDoc(doc);
     });
+  }
+
+  void _startPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
+      try {
+        final doc = await _svc.getLockState();
+        await _applyLockDoc(doc);
+      } catch (_) {}
+    });
+  }
+
+  Future<void> _applyLockDoc(LockStateDoc doc) async {
+    final now = DateTime.now();
+    final unlocked = doc.unlockExpiry != null && doc.unlockExpiry!.isAfter(now);
+    state = UnlockState(
+      isLocked: doc.isLocked,
+      isPinSet: doc.isPinSet,
+      isUnlocked: unlocked,
+      expiresAt: doc.unlockExpiry,
+      delayTimer: doc.delayTimer,
+    );
+    await PlatformBridge.setPinSet(doc.isPinSet);
+    if (doc.isPinSet) {
+      await PlatformBridge.setInviteRotationPending(false);
+    }
+    // Cache the trusted PIN hash locally so PIN unlock works offline.
+    await _svc.cacheTrustedPinHashForOffline(doc.currentPinHash);
+    await PlatformBridge.setUnlockUntilMs(
+      unlocked ? doc.unlockExpiry!.millisecondsSinceEpoch : null,
+    );
+    if (unlocked) {
+      _scheduleUnlockExpiryTimer();
+    } else {
+      _timer?.cancel();
+    }
   }
 
   Future<void> _onUnlockWindowEnded() async {
@@ -157,15 +174,18 @@ class UnlockNotifier extends StateNotifier<UnlockState> {
     }
 
     try {
-      // Keep blocking active even without a trusted PIN.
-      await PlatformBridge.setInviteRotationPending(true);
+      // Reset all protections to OFF when PIN is removed.
+      await PlatformBridge.setInviteRotationPending(false);
 
       await _svc.clearUnlockExpiry();
       await _svc.clearCurrentPin();
+      await _svc.clearAllBlocks();
       await _svc.clearOfflinePinCache();
+      await _clearAllLocalFeatureFlags();
 
       await PlatformBridge.setUnlockUntilMs(null);
       await PlatformBridge.setPinSet(false);
+      await PlatformBridge.setBlockConfig('{}');
     } catch (e) {
       return 'Could not remove PIN: $e';
     }
@@ -178,6 +198,15 @@ class UnlockNotifier extends StateNotifier<UnlockState> {
       delayTimer: state.delayTimer,
     );
     return null;
+  }
+
+  Future<void> _clearAllLocalFeatureFlags() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (final app in kSupportedApps) {
+      for (final feature in app.features) {
+        await prefs.remove('${app.packageName}:${feature.key}');
+      }
+    }
   }
 
   Future<void> grantDelayedAccess({required Function() onUnlocked}) async {
@@ -207,6 +236,7 @@ class UnlockNotifier extends StateNotifier<UnlockState> {
   void dispose() {
     _sub?.cancel();
     _timer?.cancel();
+    _pollTimer?.cancel();
     super.dispose();
   }
 }

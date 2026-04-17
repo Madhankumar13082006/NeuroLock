@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'core/theme.dart';
 import 'presentation/screens/login_screen.dart';
 import 'presentation/screens/register_screen.dart';
+import 'presentation/screens/terms_and_conditions_screen.dart';
 import 'presentation/screens/main_shell_screen.dart';
 import 'presentation/screens/lock_overlay_screen.dart';
 
@@ -50,6 +51,10 @@ final _router = GoRouter(
   routes: [
     GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
     GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
+    GoRoute(
+      path: '/terms',
+      builder: (_, __) => const TermsAndConditionsScreen(),
+    ),
     GoRoute(
       path: '/home',
       builder: (_, __) => const MainShellScreen(),

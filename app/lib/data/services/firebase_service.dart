@@ -68,19 +68,29 @@ class FirebaseService {
   // ── AUTH ──────────────────────────────────────────────────
   Future<void> register(String email, String password, String name) async {
     final cred = await _auth.createUserWithEmailAndPassword(
-        email: email, password: password);
+      email: email,
+      password: password,
+    );
+    final user = cred.user;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'internal-error',
+        message: 'Account was created but user session is unavailable.',
+      );
+    }
 
-    // Account creation already succeeded above. Best-effort profile sync and
-    // verification email should not flip UX into a false "registration failed".
+    // Account creation succeeded above. Any follow-up task here is best-effort
+    // and must not flip UX into a false "registration failed" state.
     try {
-      await _upsertUserProfile(cred.user!, fallbackName: name);
+      await _upsertUserProfile(user, fallbackName: name);
     } catch (_) {}
     try {
-      await cred.user!.sendEmailVerification();
+      await user.sendEmailVerification();
     } catch (_) {}
-
-    // Force ownership verification before account can be used.
-    await _auth.signOut();
+    try {
+      // Force ownership verification before account can be used.
+      await _auth.signOut();
+    } catch (_) {}
   }
 
   Future<void> login(String email, String password) async {

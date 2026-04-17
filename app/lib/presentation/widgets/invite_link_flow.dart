@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/app_list.dart';
 import '../../core/theme.dart';
 import '../../platform/method_channel.dart';
 import '../providers/auth_provider.dart';
@@ -171,8 +172,26 @@ class InviteLinkFlow {
     required String packageName,
   }) async {
     // Global PIN: generate one link for the whole account.
-    // We attach all active blocks across apps for auditing/visibility only.
-    final active = await BlockNotifier.getAllActiveBlocks();
+    // Read active blocks from Riverpod state so behavior reflects current UI
+    // immediately (without stale local cache).
+    final active = <String, Set<String>>{};
+    for (final app in kSupportedApps) {
+      final state = ref.read(blockProvider(app.packageName));
+      final enabled = state.entries
+          .where((e) => e.value)
+          .map((e) => e.key)
+          .toSet();
+      if (enabled.isNotEmpty) {
+        active[app.packageName] = enabled;
+      }
+    }
+
+    // Fallback for sessions where providers are not yet warmed.
+    if (active.isEmpty) {
+      final fromPrefs = await BlockNotifier.getAllActiveBlocks();
+      active.addAll(fromPrefs);
+    }
+
     final feats = <String>[];
     for (final e in active.entries) {
       for (final f in e.value) {

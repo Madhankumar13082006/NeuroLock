@@ -92,6 +92,16 @@ object ReferenceBlockHeuristics {
     fun instagramReelsOrClipsSurface(root: AccessibilityNodeInfo?): Boolean =
         hasViewId(root, IG_CLIPS_VIEW_PAGER) || hasViewId(root, IG_CLIPS_VIDEO_CONTAINER)
 
+    private fun instagramReelsStrictSurface(root: AccessibilityNodeInfo?): Boolean {
+        if (instagramReelsOrClipsSurface(root)) return true
+        if (root == null) return false
+        return containsViewIdSubstring(
+            root,
+            setOf("clips_viewer", "clips_video", "reel", "clips"),
+            0,
+        )
+    }
+
     fun instagramHomeFeedSurface(root: AccessibilityNodeInfo?): Boolean =
         hasViewId(root, IG_ROW_FEED_PROFILE) ||
             hasViewId(root, IG_SECONDARY_LABEL) ||
@@ -160,14 +170,22 @@ object ReferenceBlockHeuristics {
         feats: Set<String>,
     ): Boolean {
         if (feats.isEmpty()) return false
-        if (FeatureBlockDetector.classNameSuggestsAnyFeature(event.className, feats)) return true
-        if (FeatureBlockDetector.eventTextMatchesAnyFeature(event, feats)) return true
 
         val root = service.rootInActiveWindow ?: return keywordTreeFallback(service, feats)
         return try {
             val reelsOn = feats.contains("reels")
             val storiesOn = feats.contains("stories")
             val messagesOn = feats.contains("messages")
+            val reelsOnly = feats.size == 1 && reelsOn
+
+            // Reels-only mode must never block the whole Instagram app based on
+            // nav labels/text ("Reels" tab text appears on non-reels surfaces).
+            if (reelsOnly) {
+                return instagramReelsStrictSurface(root)
+            }
+
+            if (FeatureBlockDetector.classNameSuggestsAnyFeature(event.className, feats)) return true
+            if (FeatureBlockDetector.eventTextMatchesAnyFeature(event, feats)) return true
 
             val clips = instagramReelsOrClipsSurface(root)
             val home = instagramHomeFeedSurface(root)
@@ -184,7 +202,6 @@ object ReferenceBlockHeuristics {
                 return true
             }
 
-            val reelsOnly = feats.size == 1 && reelsOn
             val storiesOnly = feats.size == 1 && storiesOn
             val messagesOnly = feats.size == 1 && messagesOn
             // Do not scan the whole tree for feature keywords when only one surface is enabled —

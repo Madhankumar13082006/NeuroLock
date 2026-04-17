@@ -103,42 +103,53 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
           ),
           const SizedBox(height: 28),
           // Keypad
-          ...['1 2 3', '4 5 6', '7 8 9', '  0 ⌫'].map((row) {
-            final keys = row.split(' ');
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: keys.map((k) {
-                if (k.isEmpty) return const SizedBox(width: 72);
-                return GestureDetector(
-                  onTap: () => k == '⌫' ? _delete() : _onKey(k),
-                  child: Container(
-                    width: 72,
-                    height: 56,
-                    margin: const EdgeInsets.symmetric(vertical: 6),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: k == '⌫'
-                          ? AppTheme.danger.withValues(alpha: 0.1)
-                          : AppTheme.card,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: k == '⌫'
-                            ? AppTheme.danger.withValues(alpha: 0.35)
-                            : AppTheme.cardBorder,
-                      ),
-                    ),
-                    child: Text(k,
-                        style: TextStyle(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final keyWidth = ((constraints.maxWidth - 18) / 4).clamp(52.0, 66.0);
+              const rows = ['1 2 3', '4 5 6', '7 8 9', '  0 ⌫'];
+              return Column(
+                children: rows.map((row) {
+                  final keys = row.split(' ');
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: keys.map((k) {
+                      if (k.isEmpty) return SizedBox(width: keyWidth);
+                      return GestureDetector(
+                        onTap: () => k == '⌫' ? _delete() : _onKey(k),
+                        child: Container(
+                          width: keyWidth,
+                          height: 56,
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
                             color: k == '⌫'
-                                ? AppTheme.danger
-                                : AppTheme.textPrimary,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600)),
-                  ),
-                );
-              }).toList(),
-            );
-          }),
+                                ? AppTheme.danger.withValues(alpha: 0.1)
+                                : AppTheme.card,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: k == '⌫'
+                                  ? AppTheme.danger.withValues(alpha: 0.35)
+                                  : AppTheme.cardBorder,
+                            ),
+                          ),
+                          child: Text(
+                            k,
+                            style: TextStyle(
+                              color: k == '⌫'
+                                  ? AppTheme.danger
+                                  : AppTheme.textPrimary,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  );
+                }).toList(),
+              );
+            },
+          ),
           const SizedBox(height: 8),
           TextButton(
             onPressed: () => Navigator.pop(context),

@@ -17,7 +17,6 @@ class BlockNotifier extends StateNotifier<Map<String, bool>> {
   }
 
   Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
     final data = await _svc.getBlocks(packageName);
     final Map<String, bool> merged = {};
     final allowed = _allowedFeatureKeysForPackage(packageName);
@@ -33,16 +32,6 @@ class BlockNotifier extends StateNotifier<Map<String, bool>> {
       } else if (v is String) {
         merged[k] = v.toLowerCase() == 'true';
       }
-    }
-
-    // Local (SharedPreferences) fallback / offline support.
-    for (final key in prefs.getKeys()) {
-      if (!key.startsWith('$packageName:')) continue;
-      final parts = key.split(':');
-      if (parts.length != 2) continue;
-      final featureKey = parts[1];
-      if (!allowed.contains(featureKey)) continue;
-      merged.putIfAbsent(featureKey, () => prefs.getBool(key) ?? false);
     }
 
     state = merged;

@@ -278,10 +278,6 @@ class _FeatureToggleRowState extends ConsumerState<FeatureToggleRow> {
             onChanged: (_) async {
               final nextValue = !isOn;
 
-              // Capture BEFORE any awaits — a Firestore stream update arriving
-              // during the operation must not change which branch we take.
-              final pinSetAtToggleTime = unlock.isPinSet;
-
               // Once a trusted PIN is set, blocks become immutable.
               // User must remove PIN, change blocks, then generate a fresh link.
               if (unlock.isPinSet) {
@@ -300,6 +296,48 @@ class _FeatureToggleRowState extends ConsumerState<FeatureToggleRow> {
 
               // ── Turning ON: confirm dialog ────────────────────────────────
               if (nextValue) {
+                final accessibilityEnabled =
+                    await PlatformBridge.isAccessibilityEnabled();
+                if (!accessibilityEnabled) {
+                  if (!context.mounted) return;
+                  final openSettings = await showDialog<bool>(
+                    context: context,
+                    useRootNavigator: true,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: AppTheme.surface,
+                      title: const Text(
+                        'Enable Accessibility first',
+                        style: TextStyle(color: AppTheme.textPrimary),
+                      ),
+                      content: const Text(
+                        'Protection can be turned on only after Accessibility is enabled for NeuroLock.',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          height: 1.45,
+                          fontSize: 14,
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(color: AppTheme.textSecondary),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Open settings'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (openSettings == true) {
+                    await PlatformBridge.openAccessibilitySettings();
+                  }
+                  return;
+                }
+
                 final confirmed = await InviteLinkFlow.showConfirmBlockDialog(
                   context,
                   featureLabel: widget.feature.label,
@@ -373,20 +411,6 @@ class _FeatureToggleRowState extends ConsumerState<FeatureToggleRow> {
                 await BlockNotifier.syncNativeBlockConfig(
                     ref.read(unlockProvider));
               } catch (_) {}
-
-              if (!context.mounted) return;
-
-              // ── Auto-generate invite link ─────────────────────────────────
-              // Use pinSetAtToggleTime so a Firestore stream update that arrives
-              // during the awaits above cannot flip this to true and skip the
-              // link screen (the #1 cause of “link never appears” reports).
-              if (nextValue && !pinSetAtToggleTime) {
-                await InviteLinkFlow.generateAndShowInviteScreen(
-                  context,
-                  ref,
-                  packageName: widget.packageName,
-                );
-              }
             },
           ),
         ],

@@ -26,13 +26,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _login() async {
     setState(() => _localError = null);
-    if (_email.text.trim().isEmpty || _pass.text.isEmpty) {
+    final email = _email.text.trim();
+    final pass = _pass.text;
+    if (email.isEmpty || pass.isEmpty) {
       setState(() => _localError = 'Enter both email and password.');
+      return;
+    }
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+      setState(() => _localError = 'Enter a valid email address.');
       return;
     }
     final ok = await ref
         .read(authNotifierProvider.notifier)
-        .login(_email.text, _pass.text);
+        .login(email, pass);
     if (ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
