@@ -28,7 +28,6 @@ class SupportedApp {
   });
 }
 
-/// Release scope: Only YouTube Shorts + Instagram Reels.
 const List<SupportedApp> kSupportedApps = [
   SupportedApp(
     packageName: 'com.google.android.youtube',
@@ -39,6 +38,12 @@ const List<SupportedApp> kSupportedApps = [
         key: 'shorts',
         label: 'Block Shorts',
         icon: Icons.video_library_rounded,
+      ),
+      FeatureBlock(
+        key: 'web_shorts',
+        label: 'Block Shorts on Chrome',
+        icon: Icons.language_rounded,
+        earlyAccess: true,
       ),
     ],
   ),
@@ -51,6 +56,18 @@ const List<SupportedApp> kSupportedApps = [
         key: 'reels',
         label: 'Block Reels',
         icon: Icons.view_week_rounded,
+        earlyAccess: true,
+      ),
+      FeatureBlock(
+        key: 'web_reels',
+        label: 'Block Reels on Chrome',
+        icon: Icons.language_rounded,
+        earlyAccess: true,
+      ),
+      FeatureBlock(
+        key: 'explore',
+        label: 'Block Explore Tab',
+        icon: Icons.explore_rounded,
         earlyAccess: true,
       ),
     ],

@@ -37,6 +37,10 @@ object ReferenceBlockHeuristics {
 
     const val SC_SPOTLIGHT_CONTAINER = "com.snapchat.android:id/spotlight_container"
 
+    const val CHROME_URL_BAR = "com.android.chrome:id/url_bar"
+
+    const val IG_EXPLORE_GRID = "com.instagram.android:id/explore_grid_media_container"
+
     fun hasViewId(root: AccessibilityNodeInfo?, fullViewId: String): Boolean {
         if (root == null) return false
         return try {
@@ -136,6 +140,42 @@ object ReferenceBlockHeuristics {
 
     fun snapchatSpotlightSurface(root: AccessibilityNodeInfo?): Boolean =
         hasViewId(root, SC_SPOTLIGHT_CONTAINER)
+
+    fun chromeCurrentUrl(root: AccessibilityNodeInfo?): String {
+        if (root == null) return ""
+        return try {
+            val list = root.findAccessibilityNodeInfosByViewId(CHROME_URL_BAR)
+            val text = list?.firstOrNull()?.text?.toString() ?: ""
+            list?.forEach { try { it.recycle() } catch (_: Exception) {} }
+            text
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
+    fun chromeHasYouTubeShorts(root: AccessibilityNodeInfo?): Boolean {
+        val url = chromeCurrentUrl(root).lowercase()
+        if (url.isBlank()) return false
+        return (url.contains("youtube.com") || url.contains("youtu.be")) &&
+            url.contains("short")
+    }
+
+    fun chromeHasInstagramReels(root: AccessibilityNodeInfo?): Boolean {
+        val url = chromeCurrentUrl(root).lowercase()
+        if (url.isBlank()) return false
+        return url.contains("instagram.com") &&
+            (url.contains("/reel") || url.contains("/reels"))
+    }
+
+    fun instagramExploreSurface(root: AccessibilityNodeInfo?): Boolean {
+        if (root == null) return false
+        if (hasViewId(root, IG_EXPLORE_GRID)) return true
+        return containsViewIdSubstring(
+            root,
+            setOf("explore_fragment", "explore_grid", "explore_media"),
+            0,
+        )
+    }
 
     private fun keywordTreeFallback(
         service: AccessibilityService,

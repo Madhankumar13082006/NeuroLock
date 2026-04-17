@@ -16,6 +16,7 @@ object FeatureBlockDetector {
     const val PKG_YOUTUBE = "com.google.android.youtube"
     const val PKG_INSTAGRAM = "com.instagram.android"
     const val PKG_SNAPCHAT = "com.snapchat.android"
+    const val PKG_CHROME = "com.android.chrome"
 
     private const val MAX_DEPTH = 48
 

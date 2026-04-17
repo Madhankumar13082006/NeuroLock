@@ -79,9 +79,12 @@ class _FeatureToggleRowState extends ConsumerState<FeatureToggleRow> {
 
   bool get _isTimedFeature =>
       (widget.packageName == 'com.google.android.youtube' &&
-          widget.feature.key == 'shorts') ||
+          (widget.feature.key == 'shorts' ||
+              widget.feature.key == 'web_shorts')) ||
       (widget.packageName == 'com.instagram.android' &&
-          widget.feature.key == 'reels');
+          (widget.feature.key == 'reels' ||
+              widget.feature.key == 'web_reels' ||
+              widget.feature.key == 'explore'));
 
   Future<int?> _pickTimedFeatureLimit(BuildContext context) async {
     final presets = <int>[0, 5, 10, 15, 20, 30, 45, 60, 90, 120];
