@@ -144,7 +144,7 @@ class AppBlockerService : AccessibilityService() {
 
         // Strict Settings lockdown: while active, Settings should never be visible.
         val settingsLockdownUntil = prefs.getLong(KEY_SETTINGS_LOCKDOWN_UNTIL_MS, 0L)
-        val settingsLockdownActive = settingsLockdownUntil > System.currentTimeMillis()
+        val settingsLockdownActive = shouldArmAntiUninstall && settingsLockdownUntil > System.currentTimeMillis()
         if (settingsLockdownActive && AntiUninstallHeuristics.isSettingsLikeSurface(pkg)) {
             triggerLock(
                 lockTarget = "com.android.settings",
