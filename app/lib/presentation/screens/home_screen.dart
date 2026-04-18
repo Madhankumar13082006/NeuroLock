@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:installed_apps/installed_apps.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/app_block_info.dart';
 import '../../core/theme.dart';
 import '../providers/block_provider.dart';
@@ -14,6 +16,7 @@ import '../widgets/brand_logo.dart';
 import '../widgets/shell_app_bar_actions.dart';
 import '../../platform/method_channel.dart';
 import 'pin_entry_screen.dart';
+import 'accessibility_permission_sheet.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -33,8 +36,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     _syncNativeBlockedApps();
     _loadInstalledIcons();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _ensureAccessibilityEnabled();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _checkOnboarding();
+      if (mounted) _ensureAccessibilityEnabled();
     });
   }
 
@@ -47,82 +51,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // When returning from Settings, this widget is typically rebuilt; re-check.
     _ensureAccessibilityEnabled();
+  }
+
+  // Pushes to onboarding on first launch; no-op after onboarding_done is set.
+  Future<void> _checkOnboarding() async {
+    if (!mounted) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (!(prefs.getBool('onboarding_done') ?? false) && mounted) {
+      context.push('/onboarding');
+    }
   }
 
   Future<void> _ensureAccessibilityEnabled() async {
     if (!mounted) return;
     if (_askedAccessibility) return;
+    // Onboarding handles accessibility setup on first launch — skip until done.
+    final prefs = await SharedPreferences.getInstance();
+    if (!(prefs.getBool('onboarding_done') ?? false)) return;
     final enabled = await PlatformBridge.isAccessibilityEnabled();
-    if (!mounted) return;
-    if (enabled) return;
+    if (!mounted || enabled) return;
     _askedAccessibility = true;
-
-    Timer? poll;
-    var dialogOpen = true;
-    poll = Timer.periodic(const Duration(milliseconds: 450), (_) async {
-      if (!mounted || !dialogOpen) return;
-      final ok = await PlatformBridge.isAccessibilityEnabled();
-      if (!mounted || !dialogOpen) return;
-      if (ok) {
-        dialogOpen = false;
-        if (Navigator.of(context, rootNavigator: true).canPop()) {
-          Navigator.of(context, rootNavigator: true).pop();
-        }
-      }
-    });
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      useRootNavigator: true,
-      routeSettings: const RouteSettings(name: 'accessibility_setup_dialog'),
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surface,
-        title: const Text(
-          'Enable Accessibility',
-          style: TextStyle(color: AppTheme.textPrimary),
-        ),
-        content: Text(
-          'NeuroLock needs Accessibility to detect blocked screens and show the lock screen.\n\n'
-          'Tap Enable now -> turn on NeuroLock -> come back.',
-          style: TextStyle(
-            color: AppTheme.textSecondary.withValues(alpha: 0.95),
-            height: 1.45,
-            fontSize: 14,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Not now',
-              style: TextStyle(color: AppTheme.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await PlatformBridge.openAccessibilitySettings();
-            },
-            child: const Text('Enable now'),
-          ),
-        ],
-      ),
-    );
-    dialogOpen = false;
-    poll?.cancel();
-
-    // If user enabled Accessibility while the dialog was showing (or right after),
-    // do not re-prompt.
-    final enabledAfter = await PlatformBridge.isAccessibilityEnabled();
+    await showAccessibilityPermissionSheet(context);
     if (!mounted) return;
-    if (enabledAfter) {
-      _askedAccessibility = false;
-      return;
-    }
-
-    // Allow re-prompting if they didn't enable it.
     _askedAccessibility = false;
   }
 
@@ -220,12 +171,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _generateGlobalInviteLink(BuildContext context) async {
-    // One PIN for whole NeuroLock: packageName is ignored by invite flow now.
     await InviteLinkFlow.generateInviteLinkWithOptionalPin(
       context,
       ref,
       packageName: 'global',
     );
+    // Rotation flag is now set — arm native blocks immediately so they're
+    // ready the instant the trusted person sets the PIN remotely.
+    if (mounted) _syncNativeBlockedApps();
   }
 
   Future<void> _removeGlobalPin(BuildContext context) async {
@@ -258,8 +211,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<UnlockState>(unlockProvider, (_, __) {
-      _syncNativeBlockedApps();
+    // Pass `next` directly — avoids re-reading stale state when PIN is first set.
+    ref.listen<UnlockState>(unlockProvider, (_, next) {
+      BlockNotifier.syncNativeBlockConfig(next).catchError((_) {});
     });
 
     final lock = ref.watch(unlockProvider);

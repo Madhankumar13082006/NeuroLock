@@ -6,7 +6,8 @@
       "Bash(powershell -Command \"./gradlew assembleDebug\")",
       "Bash(powershell -Command '$env:JAVA_HOME = \"C:\\\\Program Files\\\\Microsoft\\\\jdk-21.0.4.7-hotspot\"; ./gradlew assembleDebug')",
       "Bash(flutter build *)",
-      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); c=d['client'][0]; print\\('package:', c['client_info']['android_client_info']['package_name']\\); print\\('oauth_client:', c.get\\('oauth_client', []\\)\\)\")"
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); c=d['client'][0]; print\\('package:', c['client_info']['android_client_info']['package_name']\\); print\\('oauth_client:', c.get\\('oauth_client', []\\)\\)\")",
+      "Bash(find \"k:\\\\projects\\\\NeuroLock\\\\NeuroLock\\\\app\" -name \"pubspec.yaml\" -exec head -60 {} \\\\;)"
     ]
   }
 }

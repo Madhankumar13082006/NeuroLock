@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">NeuroLock</string>
-    <string name="accessibility_service_description">App blocker for Impulse Control - blocks access to addictive apps</string>
+    <string name="accessibility_service_description">NeuroLock uses Accessibility to detect and block distracting content and to prevent unauthorized removal of the app. It never reads private content for any other purpose.</string>
+    <string name="accessibility_service_summary">Protects your focus by blocking configured apps and guarding against bypass attempts.</string>
 </resources>

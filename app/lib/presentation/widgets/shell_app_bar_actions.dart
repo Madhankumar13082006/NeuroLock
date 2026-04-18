@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
+import '../providers/block_provider.dart';
 import '../providers/unlock_provider.dart';
 import '../../platform/method_channel.dart';
 import '../screens/pin_entry_screen.dart';
@@ -66,6 +67,14 @@ class ShellAppBarActions extends ConsumerWidget {
             await svc.clearOfflinePinCache();
           } catch (_) {}
         }
+
+        // Always clear blocks so next login starts with all features OFF.
+        try {
+          await ref.read(firebaseServiceProvider).clearAllBlocks();
+        } catch (_) {}
+        // Invalidate Riverpod block providers so they are recreated fresh
+        // on next login instead of retaining stale ON state.
+        ref.invalidate(blockProvider);
 
         // Reset local-only state so a new login starts fresh.
         try {

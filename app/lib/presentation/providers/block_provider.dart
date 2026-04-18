@@ -35,6 +35,15 @@ class BlockNotifier extends StateNotifier<Map<String, bool>> {
     }
 
     state = merged;
+
+    // Mirror Firestore state into SharedPreferences so syncNativeBlockConfig
+    // reads correct values on re-login (toggle() only writes on user action).
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      for (final k in merged.keys) {
+        await prefs.setBool('$packageName:$k', merged[k]!);
+      }
+    } catch (_) {}
   }
 
   bool isEnabled(String key) => state[key] ?? false;

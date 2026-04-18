@@ -8,6 +8,7 @@ import 'presentation/screens/register_screen.dart';
 import 'presentation/screens/terms_and_conditions_screen.dart';
 import 'presentation/screens/main_shell_screen.dart';
 import 'presentation/screens/lock_overlay_screen.dart';
+import 'presentation/screens/onboarding_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey =
     GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -54,6 +55,10 @@ final _router = GoRouter(
     GoRoute(
       path: '/terms',
       builder: (_, __) => const TermsAndConditionsScreen(),
+    ),
+    GoRoute(
+      path: '/onboarding',
+      builder: (_, __) => const OnboardingScreen(),
     ),
     GoRoute(
       path: '/home',
