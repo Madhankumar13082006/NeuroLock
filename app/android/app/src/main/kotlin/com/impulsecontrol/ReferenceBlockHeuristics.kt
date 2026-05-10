@@ -38,6 +38,12 @@ object ReferenceBlockHeuristics {
     const val SC_SPOTLIGHT_CONTAINER = "com.snapchat.android:id/spotlight_container"
 
     const val CHROME_URL_BAR = "com.android.chrome:id/url_bar"
+    private val WEB_URL_VIEW_IDS = listOf(
+        "com.android.chrome:id/url_bar",
+        "com.google.android.googlequicksearchbox:id/url_bar",
+        "com.google.android.googlequicksearchbox:id/search_box",
+        "com.google.android.googlequicksearchbox:id/googleapp_browser_url_text",
+    )
 
     const val IG_EXPLORE_GRID = "com.instagram.android:id/explore_grid_media_container"
 
@@ -144,13 +150,69 @@ object ReferenceBlockHeuristics {
     fun chromeCurrentUrl(root: AccessibilityNodeInfo?): String {
         if (root == null) return ""
         return try {
-            val list = root.findAccessibilityNodeInfosByViewId(CHROME_URL_BAR)
-            val text = list?.firstOrNull()?.text?.toString() ?: ""
-            list?.forEach { try { it.recycle() } catch (_: Exception) {} }
-            text
+            // Primary path: known URL view ids from Chrome + Google app web surfaces.
+            val byId = extractUrlFromKnownIds(root)
+            if (byId.isNotBlank()) return byId
+
+            // Fallback: walk visible text and pick a likely URL token.
+            extractLikelyUrlFromTree(root)
         } catch (_: Exception) {
             ""
         }
+    }
+
+    private fun extractUrlFromKnownIds(root: AccessibilityNodeInfo): String {
+        for (id in WEB_URL_VIEW_IDS) {
+            try {
+                val list = root.findAccessibilityNodeInfosByViewId(id)
+                if (list != null) {
+                    for (node in list) {
+                        val text = node.text?.toString().orEmpty()
+                        if (looksLikeWebUrl(text)) {
+                            for (n in list) {
+                                try { n.recycle() } catch (_: Exception) {}
+                            }
+                            return text
+                        }
+                    }
+                    for (n in list) {
+                        try { n.recycle() } catch (_: Exception) {}
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        }
+        return ""
+    }
+
+    private fun extractLikelyUrlFromTree(root: AccessibilityNodeInfo?): String {
+        if (root == null) return ""
+        return extractLikelyUrlNode(root, 0)
+    }
+
+    private fun extractLikelyUrlNode(node: AccessibilityNodeInfo?, depth: Int): String {
+        if (node == null || depth > 56) return ""
+        try {
+            val text = node.text?.toString().orEmpty()
+            if (looksLikeWebUrl(text)) return text
+            val contentDesc = node.contentDescription?.toString().orEmpty()
+            if (looksLikeWebUrl(contentDesc)) return contentDesc
+        } catch (_: Exception) {
+        }
+        for (i in 0 until node.childCount) {
+            val found = extractLikelyUrlNode(node.getChild(i), depth + 1)
+            if (found.isNotBlank()) return found
+        }
+        return ""
+    }
+
+    private fun looksLikeWebUrl(raw: String): Boolean {
+        val text = raw.lowercase().trim()
+        if (text.isBlank()) return false
+        if (text.contains("instagram.com")) return true
+        if (text.contains("youtube.com") || text.contains("youtu.be")) return true
+        return text.startsWith("http://") || text.startsWith("https://") ||
+            (text.contains(".com") && !text.contains(" "))
     }
 
     fun chromeHasYouTubeShorts(root: AccessibilityNodeInfo?): Boolean {
@@ -163,8 +225,10 @@ object ReferenceBlockHeuristics {
     fun chromeHasInstagramReels(root: AccessibilityNodeInfo?): Boolean {
         val url = chromeCurrentUrl(root).lowercase()
         if (url.isBlank()) return false
-        return url.contains("instagram.com") &&
-            (url.contains("/reel") || url.contains("/reels"))
+        // Block all Instagram web surfaces (reels + home/profile/explore/etc).
+        // Google app webviews often expose non-reel Instagram paths from search.
+        return url.contains("instagram.com") ||
+            url.contains("instagr.am")
     }
 
     fun instagramExploreSurface(root: AccessibilityNodeInfo?): Boolean {
