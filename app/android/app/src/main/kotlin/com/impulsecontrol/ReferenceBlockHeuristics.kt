@@ -40,9 +40,26 @@ object ReferenceBlockHeuristics {
     const val CHROME_URL_BAR = "com.android.chrome:id/url_bar"
     private val WEB_URL_VIEW_IDS = listOf(
         "com.android.chrome:id/url_bar",
+        "com.android.chrome:id/omnibox_text",
+        "com.android.chrome:id/location_bar_status",
+        "com.android.chrome:id/url_bar_status",
         "com.google.android.googlequicksearchbox:id/url_bar",
         "com.google.android.googlequicksearchbox:id/search_box",
         "com.google.android.googlequicksearchbox:id/googleapp_browser_url_text",
+        "org.mozilla.firefox:id/url_bar_title",
+        "org.mozilla.firefox:id/mozac_browser_toolbar_url_view",
+        "com.sec.android.app.sbrowser:id/location_bar_edit_text",
+        "com.microsoft.emmx:id/url_bar",
+        "com.brave.browser:id/url_bar",
+        "com.opera.browser:id/url_field",
+        "com.vivaldi.browser:id/url_bar",
+        "com.duckduckgo.mobile.android:id/omnibarTextInput",
+        "com.mi.globalbrowser:id/url_bar",
+        "com.android.browser:id/url",
+        "com.jio.web:id/url_bar",
+        "com.jio.web:id/address_bar",
+        "com.jio.jiosphere:id/url_bar",
+        "com.jio.jiosphere:id/address_bar",
     )
 
     const val IG_EXPLORE_GRID = "com.instagram.android:id/explore_grid_media_container"
@@ -154,11 +171,39 @@ object ReferenceBlockHeuristics {
             val byId = extractUrlFromKnownIds(root)
             if (byId.isNotBlank()) return byId
 
+            val byBar = extractUrlFromUrlBarLikeNodes(root, 0)
+            if (byBar.isNotBlank()) return byBar
+
             // Fallback: walk visible text and pick a likely URL token.
             extractLikelyUrlFromTree(root)
         } catch (_: Exception) {
             ""
         }
+    }
+
+    private fun extractUrlFromUrlBarLikeNodes(node: AccessibilityNodeInfo?, depth: Int): String {
+        if (node == null || depth > 48) return ""
+        try {
+            val id = node.viewIdResourceName?.lowercase().orEmpty()
+            val isBar = id.contains("url") || id.contains("omnibox") || id.contains("address") ||
+                id.contains("location_bar") || id.contains("search_box") || id.contains("toolbar")
+            if (isBar) {
+                val text = node.text?.toString().orEmpty()
+                if (text.isNotBlank() && (looksLikeWebUrl(text) || urlIndicatesInstagramWeb(text))) {
+                    return text
+                }
+                val cd = node.contentDescription?.toString().orEmpty()
+                if (cd.isNotBlank() && (looksLikeWebUrl(cd) || urlIndicatesInstagramWeb(cd))) {
+                    return cd
+                }
+            }
+        } catch (_: Exception) {
+        }
+        for (i in 0 until node.childCount) {
+            val found = extractUrlFromUrlBarLikeNodes(node.getChild(i), depth + 1)
+            if (found.isNotBlank()) return found
+        }
+        return ""
     }
 
     private fun extractUrlFromKnownIds(root: AccessibilityNodeInfo): String {
@@ -209,27 +254,117 @@ object ReferenceBlockHeuristics {
     private fun looksLikeWebUrl(raw: String): Boolean {
         val text = raw.lowercase().trim()
         if (text.isBlank()) return false
-        if (text.contains("instagram.com")) return true
+        if (urlIndicatesInstagramWeb(text)) return true
         if (text.contains("youtube.com") || text.contains("youtu.be")) return true
         return text.startsWith("http://") || text.startsWith("https://") ||
             (text.contains(".com") && !text.contains(" "))
     }
 
-    fun chromeHasYouTubeShorts(root: AccessibilityNodeInfo?): Boolean {
-        val url = chromeCurrentUrl(root).lowercase()
-        if (url.isBlank()) return false
-        return (url.contains("youtube.com") || url.contains("youtu.be")) &&
-            url.contains("short")
+    /** Any Instagram web surface (feed, reels, profile, explore) — not only /reels paths. */
+    private fun urlIndicatesInstagramWeb(raw: String): Boolean {
+        val u = raw.lowercase().trim()
+        if (u.isBlank()) return false
+        if (u.contains("instagram.com") || u.contains("instagr.am")) return true
+        if (u == "instagram" || u.startsWith("instagram ")) return false
+        if (u == "instagram.com" || u.startsWith("instagram.com/") ||
+            u == "www.instagram.com" || u.startsWith("www.instagram.com/")
+        ) {
+            return true
+        }
+        return false
     }
 
-    fun chromeHasInstagramReels(root: AccessibilityNodeInfo?): Boolean {
+    fun browserHasYouTubeShorts(root: AccessibilityNodeInfo?): Boolean {
         val url = chromeCurrentUrl(root).lowercase()
-        if (url.isBlank()) return false
-        // Block all Instagram web surfaces (reels + home/profile/explore/etc).
-        // Google app webviews often expose non-reel Instagram paths from search.
-        return url.contains("instagram.com") ||
-            url.contains("instagr.am")
+        if (url.isNotBlank()) {
+            if (!url.contains("youtube.com") && !url.contains("youtu.be")) return false
+            return url.contains("/shorts") ||
+                url.contains("shorts/") ||
+                url.contains("shorts?") ||
+                (url.contains("youtu.be/") && url.contains("short"))
+        }
+        return treeContainsWebFeatureUrl(root, isYoutubeShorts = true)
     }
+
+    /**
+     * True when the browser is showing Instagram on the web (any path: feed, reels, profile, etc.).
+     * Matched when Reels / web_reels blocking is enabled in rules.
+     */
+    fun browserHasInstagramReels(root: AccessibilityNodeInfo?): Boolean {
+        val url = chromeCurrentUrl(root).lowercase()
+        if (url.isNotBlank() && urlIndicatesInstagramWeb(url)) return true
+        return treeIndicatesInstagramWeb(root, 0)
+    }
+
+    private fun treeIndicatesInstagramWeb(node: AccessibilityNodeInfo?, depth: Int): Boolean {
+        if (node == null || depth > 56) return false
+        try {
+            val blob = buildString {
+                node.text?.toString()?.let { append(it).append(' ') }
+                node.contentDescription?.toString()?.let { append(it) }
+            }.lowercase()
+            if (blob.isNotBlank()) {
+                if (urlIndicatesInstagramWeb(blob)) return true
+                // Login / home PWA when the URL bar only shows "Instagram".
+                if (blob.contains("instagram") &&
+                    (blob.contains("log in") || blob.contains("sign up") ||
+                        blob.contains("create account") || blob.contains("meta") ||
+                        blob.contains("from meta") || blob.contains("phone number"))
+                ) {
+                    return true
+                }
+            }
+        } catch (_: Exception) {
+        }
+        for (i in 0 until node.childCount) {
+            if (treeIndicatesInstagramWeb(node.getChild(i), depth + 1)) return true
+        }
+        return false
+    }
+
+    private fun treeContainsWebFeatureUrl(
+        root: AccessibilityNodeInfo?,
+        isYoutubeShorts: Boolean,
+    ): Boolean {
+        if (root == null) return false
+        return walkWebUrlNodes(root, 0, isYoutubeShorts)
+    }
+
+    private fun walkWebUrlNodes(
+        node: AccessibilityNodeInfo?,
+        depth: Int,
+        isYoutubeShorts: Boolean,
+    ): Boolean {
+        if (node == null || depth > 56) return false
+        try {
+            val blob = buildString {
+                node.text?.toString()?.let { append(it).append(' ') }
+                node.contentDescription?.toString()?.let { append(it) }
+            }.lowercase()
+            if (blob.isNotBlank()) {
+                if (isYoutubeShorts) {
+                    if ((blob.contains("youtube.com") || blob.contains("youtu.be")) &&
+                        (blob.contains("/shorts") || blob.contains("shorts/"))
+                    ) {
+                        return true
+                    }
+                } else {
+                    if (urlIndicatesInstagramWeb(blob)) return true
+                }
+            }
+        } catch (_: Exception) {
+        }
+        for (i in 0 until node.childCount) {
+            if (walkWebUrlNodes(node.getChild(i), depth + 1, isYoutubeShorts)) return true
+        }
+        return false
+    }
+
+    /** @deprecated Use [browserHasYouTubeShorts] */
+    fun chromeHasYouTubeShorts(root: AccessibilityNodeInfo?): Boolean = browserHasYouTubeShorts(root)
+
+    /** @deprecated Use [browserHasInstagramReels] */
+    fun chromeHasInstagramReels(root: AccessibilityNodeInfo?): Boolean = browserHasInstagramReels(root)
 
     fun instagramExploreSurface(root: AccessibilityNodeInfo?): Boolean {
         if (root == null) return false

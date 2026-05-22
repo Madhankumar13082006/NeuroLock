@@ -40,9 +40,7 @@ class AppBlockerService : AccessibilityService() {
         private var lastTime = 0L
         private var lastYtShortsProbeMs = 0L
         private var lastSocialProbeMs = 0L
-        private var lastChromeProbeMs = 0L
-        private var lastGoogleProbeMs = 0L
-        private const val PKG_GOOGLE = "com.google.android.googlequicksearchbox"
+        private var lastWebBrowserProbeMs = 0L
 
         fun todayKey(): String {
             return try {
@@ -174,6 +172,19 @@ class AppBlockerService : AccessibilityService() {
                 lockTarget = "com.android.settings",
                 packageName = pkg,
                 featuresForFlutter = listOf("settings_lockdown_trigger"),
+                forceHome = true,
+            )
+            return
+        }
+
+        // Prevent disabling NeuroLock from Accessibility → NeuroLock → "Use NeuroLock" toggle.
+        val accessibilityDisableSurface = shouldArmAntiUninstall &&
+            AntiUninstallHeuristics.shouldBlockNeuroLockAccessibilityDetail(this, event)
+        if (accessibilityDisableSurface) {
+            triggerLock(
+                lockTarget = packageName,
+                packageName = pkg,
+                featuresForFlutter = listOf("anti_uninstall_accessibility"),
                 forceHome = true,
             )
             return
@@ -398,20 +409,16 @@ class AppBlockerService : AccessibilityService() {
     }
 
     private fun featureListForRules(rules: JSONObject, pkg: String): List<String> {
-        val webPkg = pkg == FeatureBlockDetector.PKG_CHROME || pkg == PKG_GOOGLE
-        if (webPkg) {
+        if (WebBrowserHeuristics.isWebBrowser(pkg)) {
             val out = ArrayList<String>()
-            val ytArr = rules.optJSONArray(FeatureBlockDetector.PKG_YOUTUBE)
-            if (ytArr != null) {
-                for (i in 0 until ytArr.length()) {
-                    if (ytArr.optString(i) == "web_shorts") { out.add("web_shorts"); break }
-                }
+            if (WebBrowserHeuristics.rulesWantYouTubeShortsWeb(rules)) {
+                out.add(WebBrowserHeuristics.youtubeWebFeatureKey(rules))
             }
-            val igArr = rules.optJSONArray(FeatureBlockDetector.PKG_INSTAGRAM)
-            if (igArr != null) {
-                for (i in 0 until igArr.length()) {
-                    if (igArr.optString(i) == "web_reels") { out.add("web_reels"); break }
-                }
+            if (WebBrowserHeuristics.rulesWantInstagramReelsWeb(rules)) {
+                out.add(WebBrowserHeuristics.instagramWebFeatureKey(rules))
+            }
+            if (WebBrowserHeuristics.rulesWantAdultWebBlock(rules)) {
+                out.add(AdultContentHeuristics.FEATURE_ADULT_SITES)
             }
             return out
         }
@@ -432,8 +439,8 @@ class AppBlockerService : AccessibilityService() {
         event: AccessibilityEvent,
         rules: JSONObject
     ): Boolean {
-        if (pkg == FeatureBlockDetector.PKG_CHROME || pkg == PKG_GOOGLE) {
-            return shouldBlockChrome(pkg, event, rules)
+        if (WebBrowserHeuristics.isWebBrowser(pkg)) {
+            return shouldBlockWebBrowser(event, rules)
         }
 
         val arr = rules.optJSONArray(pkg) ?: return false
@@ -483,36 +490,42 @@ class AppBlockerService : AccessibilityService() {
         return false
     }
 
-    private fun shouldBlockChrome(pkg: String, event: AccessibilityEvent, rules: JSONObject): Boolean {
-        val isGoogle = pkg == PKG_GOOGLE
+    private fun shouldBlockWebBrowser(event: AccessibilityEvent, rules: JSONObject): Boolean {
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
             val t = SystemClock.uptimeMillis()
-            val lastProbe = if (isGoogle) lastGoogleProbeMs else lastChromeProbeMs
-            if (t - lastProbe < 550) return false
-            if (isGoogle) {
-                lastGoogleProbeMs = t
-            } else {
-                lastChromeProbeMs = t
-            }
+            if (t - lastWebBrowserProbeMs < 550) return false
+            lastWebBrowserProbeMs = t
         }
-        val ytArr = rules.optJSONArray(FeatureBlockDetector.PKG_YOUTUBE)
-        val igArr = rules.optJSONArray(FeatureBlockDetector.PKG_INSTAGRAM)
-        val wantYtWebShorts = ytArr != null &&
-            (0 until ytArr.length()).any { ytArr.optString(it) == "web_shorts" }
-        val wantIgWebReels = igArr != null &&
-            (0 until igArr.length()).any { igArr.optString(it) == "web_reels" }
-        if (!wantYtWebShorts && !wantIgWebReels) return false
+        val wantYtWebShorts = WebBrowserHeuristics.rulesWantYouTubeShortsWeb(rules)
+        val wantIgWebReels = WebBrowserHeuristics.rulesWantInstagramReelsWeb(rules)
+        val wantAdultWeb = WebBrowserHeuristics.rulesWantAdultWebBlock(rules)
+        if (!wantYtWebShorts && !wantIgWebReels && !wantAdultWeb) return false
 
         val root = rootInActiveWindow ?: return false
         return try {
             val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
-            when {
-                wantYtWebShorts && ReferenceBlockHeuristics.chromeHasYouTubeShorts(root) ->
-                    shouldEnforceFeatureBlock(prefs, FeatureBlockDetector.PKG_YOUTUBE, "web_shorts")
-                wantIgWebReels && ReferenceBlockHeuristics.chromeHasInstagramReels(root) ->
-                    shouldEnforceFeatureBlock(prefs, FeatureBlockDetector.PKG_INSTAGRAM, "web_reels")
-                else -> false
+            if (wantAdultWeb && AdultContentHeuristics.browserHasAdultContent(root)) {
+                return shouldEnforceFeatureBlock(
+                    prefs,
+                    AdultContentHeuristics.PKG_WEB_GUARD,
+                    AdultContentHeuristics.FEATURE_ADULT_SITES,
+                )
             }
+            if (wantIgWebReels && ReferenceBlockHeuristics.browserHasInstagramReels(root)) {
+                return shouldEnforceFeatureBlock(
+                    prefs,
+                    FeatureBlockDetector.PKG_INSTAGRAM,
+                    WebBrowserHeuristics.instagramWebFeatureKey(rules),
+                )
+            }
+            if (wantYtWebShorts && ReferenceBlockHeuristics.browserHasYouTubeShorts(root)) {
+                return shouldEnforceFeatureBlock(
+                    prefs,
+                    FeatureBlockDetector.PKG_YOUTUBE,
+                    WebBrowserHeuristics.youtubeWebFeatureKey(rules),
+                )
+            }
+            false
         } finally {
             try { root.recycle() } catch (_: Exception) {}
         }
@@ -540,21 +553,10 @@ class AppBlockerService : AccessibilityService() {
     }
 
     private fun hasSupportedReleaseRule(rules: JSONObject, pkg: String): Boolean {
-        val webPkg = pkg == FeatureBlockDetector.PKG_CHROME || pkg == PKG_GOOGLE
-        if (webPkg) {
-            val ytArr = rules.optJSONArray(FeatureBlockDetector.PKG_YOUTUBE)
-            if (ytArr != null) {
-                for (i in 0 until ytArr.length()) {
-                    if (ytArr.optString(i) == "web_shorts") return true
-                }
-            }
-            val igArr = rules.optJSONArray(FeatureBlockDetector.PKG_INSTAGRAM)
-            if (igArr != null) {
-                for (i in 0 until igArr.length()) {
-                    if (igArr.optString(i) == "web_reels") return true
-                }
-            }
-            return false
+        if (WebBrowserHeuristics.isWebBrowser(pkg)) {
+            return WebBrowserHeuristics.rulesWantYouTubeShortsWeb(rules) ||
+                WebBrowserHeuristics.rulesWantInstagramReelsWeb(rules) ||
+                WebBrowserHeuristics.rulesWantAdultWebBlock(rules)
         }
         if (pkg != FeatureBlockDetector.PKG_YOUTUBE && pkg != FeatureBlockDetector.PKG_INSTAGRAM) {
             return false

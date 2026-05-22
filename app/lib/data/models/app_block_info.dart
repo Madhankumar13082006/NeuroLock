@@ -41,7 +41,7 @@ const List<SupportedApp> kSupportedApps = [
       ),
       FeatureBlock(
         key: 'web_shorts',
-        label: 'Block Shorts on Chrome',
+        label: 'Block Shorts in browsers (optional)',
         icon: Icons.language_rounded,
         earlyAccess: true,
       ),
@@ -60,7 +60,7 @@ const List<SupportedApp> kSupportedApps = [
       ),
       FeatureBlock(
         key: 'web_reels',
-        label: 'Block Reels on Chrome',
+        label: 'Block Instagram in browsers (optional)',
         icon: Icons.language_rounded,
         earlyAccess: true,
       ),
@@ -69,6 +69,18 @@ const List<SupportedApp> kSupportedApps = [
         label: 'Block Explore Tab',
         icon: Icons.explore_rounded,
         earlyAccess: true,
+      ),
+    ],
+  ),
+  SupportedApp(
+    packageName: 'com.impulsecontrol.web_guard',
+    displayName: 'Web Protection',
+    brandColor: Color(0xFF7C4DFF),
+    features: [
+      FeatureBlock(
+        key: 'adult_sites',
+        label: 'Block adult websites',
+        icon: Icons.shield_outlined,
       ),
     ],
   ),

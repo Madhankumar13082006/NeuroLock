@@ -100,6 +100,16 @@ object AntiUninstallHeuristics {
         "disable",
     )
 
+    /** NeuroLock accessibility service detail screen (Use NeuroLock toggle). */
+    private val ACCESSIBILITY_SELF_MARKERS = listOf(
+        "use neurolock",
+        "neurolock shortcut",
+        "app blocker for impulse",
+        "blocks access to addictive",
+        "accessibility service",
+        "installed services",
+    )
+
     private fun windowAround(s: String, centerIdx: Int, radius: Int): String {
         val start = (centerIdx - radius).coerceAtLeast(0)
         val end = (centerIdx + radius).coerceAtMost(s.length)
@@ -372,6 +382,53 @@ object AntiUninstallHeuristics {
      * (uninstall, force stop, clear data, …) — uses proximity so other apps' App Info pages
      * that merely mention NeuroLock in a list do not trigger.
      */
+    /**
+     * Blocks the system screen where the user can turn off "Use NeuroLock"
+     * (Accessibility → NeuroLock → toggle), same protection tier as uninstall.
+     */
+    fun shouldBlockNeuroLockAccessibilityDetail(
+        service: AccessibilityService,
+        event: AccessibilityEvent,
+    ): Boolean {
+        val pkg = event.packageName?.toString() ?: return false
+        if (!isSettingsLikeSurface(pkg)) return false
+        if (quickEventFieldsMatch(event) && eventTextLooksLikeAccessibilityDetail(event)) {
+            return true
+        }
+        val root = service.rootInActiveWindow ?: return false
+        return try {
+            val sb = StringBuilder()
+            appendNodeTextTo(root, 0, sb)
+            flatIndicatesNeuroLockAccessibilityDetail(sb.toString())
+        } finally {
+            root.recycle()
+        }
+    }
+
+    private fun eventTextLooksLikeAccessibilityDetail(event: AccessibilityEvent): Boolean {
+        val sb = StringBuilder()
+        try {
+            val list = event.text
+            if (list != null) {
+                for (i in 0 until list.size) {
+                    val cs = list[i] ?: continue
+                    if (cs.isNotBlank()) sb.append(' ').append(cs)
+                }
+            }
+            event.contentDescription?.let { if (it.isNotBlank()) sb.append(' ').append(it) }
+        } catch (_: Exception) {
+        }
+        return flatIndicatesNeuroLockAccessibilityDetail(sb.toString())
+    }
+
+    private fun flatIndicatesNeuroLockAccessibilityDetail(flat: String): Boolean {
+        val l = flat.lowercase()
+        if (!blobMentionsSelf(l)) return false
+        return ACCESSIBILITY_SELF_MARKERS.any { marker ->
+            marker.isNotBlank() && l.contains(marker)
+        }
+    }
+
     fun shouldStartSettingsLockdown(
         service: AccessibilityService,
         event: AccessibilityEvent,

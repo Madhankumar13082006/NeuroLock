@@ -165,6 +165,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         return const {
           'Reels': 48.0,
         };
+      case 'com.impulsecontrol.web_guard':
+        return const {
+          'Adult sites': 100.0,
+        };
       default:
         return const {'Other': 100.0};
     }
