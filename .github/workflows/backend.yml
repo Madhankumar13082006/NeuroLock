@@ -16,11 +16,9 @@ runs-on: ubuntu-latest
 
 ```
 steps:
-  - name: Checkout Repository
-    uses: actions/checkout@v4
+  - uses: actions/checkout@v4
 
-  - name: Setup Node.js
-    uses: actions/setup-node@v4
+  - uses: actions/setup-node@v4
     with:
       node-version: 20
 
@@ -32,22 +30,17 @@ steps:
     working-directory: backend
     run: npm run build
 
-  - name: Log in to GitHub Container Registry
+  - name: Login to GHCR
     uses: docker/login-action@v3
     with:
       registry: ghcr.io
       username: ${{ github.actor }}
       password: ${{ secrets.GITHUB_TOKEN }}
 
-  - name: Build Docker Image
-    run: |
-      docker build \
-        -t ghcr.io/${{ github.repository_owner }}/neurolock-api:latest \
-        -t ghcr.io/${{ github.repository_owner }}/neurolock-api:${{ github.sha }} \
-        ./backend
-
-  - name: Push Docker Image
-    run: |
-      docker push ghcr.io/${{ github.repository_owner }}/neurolock-api:latest
-      docker push ghcr.io/${{ github.repository_owner }}/neurolock-api:${{ github.sha }}
+  - name: Build and Push Image
+    uses: docker/build-push-action@v6
+    with:
+      context: ./backend
+      push: true
+      tags: ghcr.io/${{ github.repository_owner }}/neurolock-api:latest
 ```
