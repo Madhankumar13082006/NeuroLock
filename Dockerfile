@@ -1,0 +1,26 @@
+# Build from repo root: docker build -t neurolock-api .
+# syntax=docker/dockerfile:1
+
+FROM node:20-alpine AS builder
+RUN apk add --no-cache python3 make g++
+WORKDIR /app
+COPY backend/package*.json ./
+RUN npm ci
+COPY backend/tsconfig.json ./
+COPY backend/src ./src
+RUN npm run build
+
+FROM node:20-alpine AS production
+RUN apk add --no-cache python3 make g++
+WORKDIR /app
+ENV NODE_ENV=production
+COPY backend/package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+RUN apk del python3 make g++
+COPY --from=builder /app/dist ./dist
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD node -e "require('http').get('http://127.0.0.1:3000/',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+RUN chown -R node:node /app
+USER node
+CMD ["node", "dist/server.js"]

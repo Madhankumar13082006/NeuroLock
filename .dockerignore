@@ -1,0 +1,12 @@
+**/.git
+**/.cursor
+**/.claude
+**/node_modules
+**/.env
+**/.env.*
+**/dist
+**/build
+app/
+reffer for AI/
+*.md
+!backend/README.md

@@ -1,10 +1,26 @@
 services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - backend/.env
+    environment:
+      DATABASE_URL: postgres://postgres:yourpassword@postgres:5432/impulsecontrol
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
   postgres:
     image: postgres:15-alpine
     environment:
       POSTGRES_DB: impulsecontrol
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: yourpassword
+      POSTGRES_PASSWORD: madhan123
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
