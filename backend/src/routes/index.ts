@@ -23,6 +23,13 @@ router.get('/', (req, res) => {
   res.json({ status: 'OK', message: 'Impulse Control API running' });
 });
 
+router.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Auth
 router.post('/auth/register', authLimiter, register);
 router.post('/auth/login', authLimiter, login);

@@ -1,0 +1,5 @@
+# Secrets — never commit
+k8s/secrets.yaml
+backend/.env
+*-firebase-adminsdk-*.json
+impulsecontrol-27cb6-firebase-adminsdk-fbsvc-4af6c3dc0c.json

@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/madhankumar13082006/neurolock-api:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: neurolock-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: neurolock-secrets
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: neurolock-secrets
+                  key: REDIS_URL
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: neurolock-secrets
+                  key: JWT_SECRET
+            - name: FIREBASE_ADMIN_SDK
+              valueFrom:
+                secretKeyRef:
+                  name: neurolock-secrets
+                  key: FIREBASE_ADMIN_SDK
+            - name: FIREBASE_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: neurolock-secrets
+                  key: FIREBASE_PROJECT_ID
+            - name: FIREBASE_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: neurolock-secrets
+                  key: FIREBASE_PRIVATE_KEY
+            - name: FIREBASE_CLIENT_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: neurolock-secrets
+                  key: FIREBASE_CLIENT_EMAIL
+            - name: FIREBASE_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: neurolock-secrets
+                  key: FIREBASE_DATABASE_URL
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
